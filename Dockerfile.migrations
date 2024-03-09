@@ -1,0 +1,9 @@
+FROM rust
+
+WORKDIR /app
+
+RUN cargo install sqlx-cli
+
+COPY ./migrations /app/migrations
+
+ENTRYPOINT [ "sqlx", "migrate", "run" ]

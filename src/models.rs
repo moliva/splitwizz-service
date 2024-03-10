@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, sqlx::FromRow, Debug)]
 pub struct User {
@@ -8,12 +8,9 @@ pub struct User {
     pub picture: String,
 }
 
-#[derive(Serialize, sqlx::FromRow)]
-pub struct Note {
-    pub user_id: String,
-    pub id: i32,
+#[derive(Serialize, Deserialize, sqlx::FromRow)]
+pub struct Group {
+    pub id: Option<i32>,
     pub name: String,
-    pub tags: Vec<String>,
-    pub content: serde_json::Value,
-    pub color: String,
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
 }

@@ -56,12 +56,14 @@ async fn main() -> std::io::Result<()> {
             )
             .wrap(IdentityService)
             .app_data(Data::new(db_connection.clone()))
-            .service(routes::auth::auth)
             .service(routes::status::status)
+            .service(routes::auth::auth)
             .service(routes::auth::login)
+            .service(routes::groups::create_group)
+            .service(routes::groups::fetch_groups)
     })
     .bind((host, port))
-    .unwrap_or_else(|_| panic!("Cannot bind to port {}", port))
+    .unwrap_or_else(|_| panic!("Cannot bind to port {port}"))
     .run()
     .await
 }

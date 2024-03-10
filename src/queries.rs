@@ -39,3 +39,37 @@ pub async fn find_user_by_email(
     .fetch_optional(pool)
     .await
 }
+
+pub async fn find_groups(email: &str, pool: &DbPool) -> Result<Vec<models::Group>, sqlx::Error> {
+    sqlx::query_as!(
+        models::Group,
+        "SELECT g.id, g.name, g.created_at
+         FROM users u, memberships m, groups g
+         WHERE m.user_id = u.id AND u.email = $1 AND g.id = m.group_id
+         AND m.status = 'joined'
+         ORDER BY g.id",
+        email
+    )
+    .fetch_all(pool)
+    .await
+}
+
+pub async fn create_group(
+    email: &str,
+    group: &models::Group,
+    pool: &DbPool,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        "INSERT INTO groups (name, creator_id) 
+        SELECT $1, u.id
+        FROM users u
+        WHERE u.email = $2 LIMIT 1",
+        group.name,
+        email
+    )
+    .execute(pool)
+    .await?;
+
+    // TODO - get the id from the new group - moliva - 2024/03/10
+    Ok(())
+}

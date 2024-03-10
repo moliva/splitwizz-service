@@ -1,3 +1,3 @@
 pub mod auth;
-pub mod notes;
+pub mod groups;
 pub mod status;

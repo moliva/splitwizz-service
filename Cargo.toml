@@ -21,8 +21,7 @@ google-jwt-verify = { git = "https://github.com/moliva/google-jwt-verify", branc
 http = "0.2"
 openssl = { version = "0.10", features = ["v110"] }
 sqlx = { version = "0.7", features = [
-  "offline",
-  "runtime-actix-native-tls",
+  "runtime-tokio-native-tls",
   "postgres",
   "uuid",
   "json",

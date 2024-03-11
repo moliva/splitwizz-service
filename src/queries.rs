@@ -59,13 +59,27 @@ pub async fn create_group(
     group: &models::Group,
     pool: &DbPool,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query!(
+    // create group
+    let r = sqlx::query!(
         "INSERT INTO groups (name, creator_id) 
         SELECT $1, u.id
         FROM users u
-        WHERE u.email = $2 LIMIT 1",
+        WHERE u.email = $2 LIMIT 1
+        RETURNING id",
         group.name,
         email
+    )
+    .fetch_one(pool)
+    .await?;
+
+    // join group
+    sqlx::query!(
+        "INSERT INTO memberships (user_id, group_id, status)
+        SELECT u.id, $2, 'joined'
+        FROM users u
+        WHERE u.email = $1 LIMIT 1",
+        email,
+        r.id,
     )
     .execute(pool)
     .await?;

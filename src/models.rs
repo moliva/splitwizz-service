@@ -1,16 +1,78 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, sqlx::FromRow, Debug)]
+pub type GroupId = i32;
+
+#[derive(Serialize, Deserialize)]
+pub enum MembershipStatus {
+    Pending,
+    Joined,
+    Rejected,
+}
+
+impl MembershipStatus {
+    pub fn from_str(s: &str) -> Option<Self> {
+        use MembershipStatus::*;
+
+        Some(match s {
+            "pending" => Pending,
+            "joined" => Joined,
+            "rejected" => Rejected,
+            _ => return None,
+        })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, PartialOrd, sqlx::Type, Deserialize, Serialize)]
+#[sqlx(type_name = "user_status", rename_all = "lowercase")]
+pub enum UserStatus {
+    Invited,
+    Active,
+    Inactive,
+}
+
+#[derive(Serialize, Deserialize, sqlx::FromRow, Debug)]
 pub struct User {
     pub id: String,
-    pub name: String,
     pub email: String,
-    pub picture: String,
+    pub status: UserStatus,
+    pub name: Option<String>,
+    pub picture: Option<String>,
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+#[derive(Serialize, Deserialize, sqlx::FromRow)]
+pub struct Notification {
+    pub group: Group,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow)]
 pub struct Group {
-    pub id: Option<i32>,
+    pub id: Option<GroupId>,
     pub name: String,
     pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+#[derive(Serialize, Deserialize, sqlx::FromRow)]
+pub struct Membership {
+    pub user: User,
+    pub status: MembershipStatus,
+    pub status_updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Serialize, Deserialize, sqlx::FromRow)]
+pub struct DetailedGroup {
+    // shared with group
+    pub id: GroupId,
+    pub name: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    // detailed group specific
+    pub creator: User,
+    pub members: Vec<Membership>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MembershipInvitation {
+    pub emails: Vec<String>,
 }

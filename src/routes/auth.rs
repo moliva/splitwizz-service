@@ -8,7 +8,7 @@ use google_jwt_verify::Client as GoogleClient;
 use uuid::Uuid;
 
 use crate::auth::{AuthData, TokenForm, TokenResponse};
-use crate::models::User;
+use crate::models::{User, UserStatus};
 use crate::queries::{upsert_user, DbPool};
 use crate::utils::gen_random_string;
 
@@ -52,17 +52,20 @@ async fn auth(
         let payload = decoded_token.get_payload();
 
         let email = payload.get_email();
-        let name = payload.get_name();
-        let picture = payload.get_picture_url();
+        let name = Some(payload.get_name());
+        let picture = Some(payload.get_picture_url());
 
         let user = User {
             id: Uuid::new_v4().to_string(),
+            status: UserStatus::Active,
             name,
             email,
             picture,
+            created_at: None,
+            updated_at: None,
         };
 
-        let created = upsert_user(&user, &pool)
+        upsert_user(&user, &pool)
             .await
             .map_err(|e| {
                 eprintln!("{}", e);
@@ -106,13 +109,10 @@ async fn login() -> Result<HttpResponse> {
             include_granted_scopes=true&\
             response_type=code&\
             state={}&\
-            redirect_uri={}&\
+            redirect_uri={}/auth&\
             client_id={}",
                 gen_random_string(),
-                format!(
-                    "{}/auth",
-                    env::var("SELF_URI").expect("self uri not provided")
-                ),
+                env::var("SELF_URI").expect("self uri not provided"),
                 env::var("CLIENT_ID").expect("client id not provided")
             ),
         ))

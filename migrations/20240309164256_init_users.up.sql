@@ -1,8 +1,13 @@
+CREATE TYPE user_status AS ENUM ('invited', 'active', 'inactive');
+
 CREATE TABLE users (
     id VARCHAR PRIMARY KEY,
-    name VARCHAR NOT NULL,
     email VARCHAR NOT NULL UNIQUE,
-    picture VARCHAR NOT NULL
+    status user_status NOT NULL,
+    name VARCHAR,
+    picture VARCHAR,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX users_email_index

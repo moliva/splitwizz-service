@@ -161,6 +161,28 @@ pub async fn create_group(
     Ok(())
 }
 
+pub async fn update_membership(
+    email: &str,
+    status: &str,
+    group: models::GroupId,
+    pool: &DbPool,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"UPDATE memberships
+         SET status = $3
+         WHERE group_id = $2
+         AND user_id = (SELECT id FROM users WHERE email = $1 LIMIT 1)
+         "#,
+        email,
+        group,
+        status,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
 pub async fn create_membership_invites(
     emails: &Vec<String>,
     group_id: i32,

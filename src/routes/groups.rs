@@ -65,6 +65,25 @@ pub async fn fetch_detailed_group(
     Ok(HttpResponse::Ok().json(&group))
 }
 
+#[put("/groups/{group_id}/memberships")]
+pub async fn update_membership(
+    identity: Identity,
+    group_id: web::Path<i32>,
+    membership_invitation: web::Json<models::MembershipUpdate>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+    let email = identity.identity().unwrap().email;
+    let group_id = group_id.into_inner();
+
+    let web::Json(models::MembershipUpdate { status }) = membership_invitation;
+
+    crate::queries::update_membership(&email, &status, group_id, &pool)
+        .await
+        .map_err(handle_unknown_error)?;
+
+    Ok(HttpResponse::Ok().json(()))
+}
+
 #[post("/groups/{group_id}/memberships")]
 pub async fn create_memberships(
     group_id: web::Path<i32>,

@@ -2,7 +2,9 @@ use serde::{Deserialize, Serialize};
 
 pub type GroupId = i32;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Deserialize, Serialize)]
+// #[derive(Clone, Debug, PartialEq, PartialOrd, sqlx::Type, Deserialize, Serialize)]
+// #[sqlx(type_name = "membership_status", rename_all = "lowercase")]
 pub enum MembershipStatus {
     Pending,
     Joined,
@@ -52,6 +54,12 @@ pub struct Group {
     pub id: Option<GroupId>,
     pub name: String,
     pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+#[derive(Serialize, Deserialize, sqlx::FromRow)]
+pub struct MembershipUpdate {
+    // pub status: MembershipStatus,
+    pub status: String,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow)]

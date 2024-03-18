@@ -63,6 +63,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::groups::fetch_groups)
             .service(routes::groups::fetch_detailed_group)
             .service(routes::groups::create_memberships)
+            .service(routes::groups::update_membership)
             .service(routes::groups::fetch_notifications)
     })
     .bind((host, port))

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use uuid::Uuid;

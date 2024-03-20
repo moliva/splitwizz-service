@@ -48,7 +48,7 @@ async fn auth(
         let token = id_token.expect("id_token missing");
 
         let client = GoogleClient::new(&client_id);
-        let decoded_token = client.verify_id_token_async(&token).await.unwrap();
+        let decoded_token = client.verify_id_token_async(&token).await.expect("valid token");
         let payload = decoded_token.get_payload();
 
         let email = payload.get_email();

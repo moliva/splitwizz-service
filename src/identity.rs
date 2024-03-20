@@ -167,6 +167,7 @@ async fn validate_auth_(headers: &HeaderMap) -> Option<Token<IdPayload>> {
         let token = identity_token.to_str().unwrap();
 
         let client = GoogleClient::new(client_id);
+        // TODO - handle the case where the token is expired below - moliva - 2024/03/20
         let yas = client.verify_id_token_async(token).await.unwrap();
 
         Some(yas)

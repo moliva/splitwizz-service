@@ -6,6 +6,15 @@ use crate::identity::Identity;
 use crate::models;
 use crate::queries::DbPool;
 
+#[get("/currencies")]
+pub async fn fetch_currencies(pool: web::Data<DbPool>) -> Result<HttpResponse, Error> {
+    let currencies = crate::queries::find_currencies(&pool)
+        .await
+        .map_err(handle_unknown_error)?;
+
+    Ok(HttpResponse::Ok().json(&currencies))
+}
+
 #[get("/notifications")]
 pub async fn fetch_notifications(
     identity: Identity,

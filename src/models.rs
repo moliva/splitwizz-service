@@ -5,6 +5,7 @@ pub type GroupId = i32;
 #[derive(Clone, Debug, PartialEq, PartialOrd, Deserialize, Serialize)]
 // #[derive(Clone, Debug, PartialEq, PartialOrd, sqlx::Type, Deserialize, Serialize)]
 // #[sqlx(type_name = "membership_status", rename_all = "lowercase")]
+#[serde(rename_all(serialize = "lowercase", deserialize = "lowercase"))]
 pub enum MembershipStatus {
     Pending,
     Joined,
@@ -26,6 +27,7 @@ impl MembershipStatus {
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, sqlx::Type, Deserialize, Serialize)]
 #[sqlx(type_name = "user_status", rename_all = "lowercase")]
+#[serde(rename_all(serialize = "lowercase", deserialize = "lowercase"))]
 pub enum UserStatus {
     Invited,
     Active,
@@ -88,6 +90,7 @@ pub struct MembershipInvitation {
 #[derive(Serialize, Deserialize, sqlx::FromRow)]
 pub struct Currency {
     pub id: i32,
+    pub acronym: String,
     pub description: String,
 }
 
@@ -97,7 +100,6 @@ pub struct Expense {
 
     pub payer: User,
     // pub group: Group,
-
     pub description: String, // move to its own type
     pub currency: Currency,
     pub amount: f64,

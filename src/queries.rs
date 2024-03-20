@@ -267,3 +267,9 @@ pub async fn find_notifications(
 
     Ok(notifications)
 }
+
+pub async fn find_currencies(pool: &DbPool) -> Result<Vec<models::Currency>, sqlx::Error> {
+    sqlx::query_as!(models::Currency, "SELECT * FROM currencies ORDER BY id")
+        .fetch_all(pool)
+        .await
+}

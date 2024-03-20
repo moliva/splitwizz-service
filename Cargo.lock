@@ -1020,7 +1020,7 @@ checksum = "4271d37baee1b8c7e4b708028c57d816cf9d2434acb33a549475f78c181f6253"
 [[package]]
 name = "google-jwt-verify"
 version = "0.3.1"
-source = "git+https://github.com/moliva/google-jwt-verify?branch=master#9093e2815ee5a4446a6e24e16d961d36e2c45031"
+source = "git+https://github.com/moliva/google-jwt-verify?branch=master#20f380eef088a4a6dcb4dcae6c8a58cd8951a1d3"
 dependencies = [
  "async-trait",
  "base64 0.11.0",

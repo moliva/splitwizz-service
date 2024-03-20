@@ -24,20 +24,3 @@ pub struct TokenResponse {
     pub scope: Option<String>,
     pub refresh_token: Option<String>,
 }
-
-#[derive(Deserialize, Debug)]
-pub struct IdentityToken {
-    pub iss: String,
-    pub azp: String,
-    pub aud: String,
-    pub sub: String,
-    pub at_hash: String,
-    pub name: String,
-    pub email: String,
-    pub picture: String,
-    pub given_name: String,
-    pub family_name: String,
-    pub locale: String,
-    pub iat: i32,
-    pub exp: i32,
-}

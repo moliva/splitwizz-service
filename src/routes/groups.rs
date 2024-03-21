@@ -120,6 +120,8 @@ pub async fn create_expense(
     let email = identity.identity().unwrap().email;
     let group_id = group_id.into_inner();
 
+    // TODO - check that current user is joined in group - moliva - 2024/03/21
+
     let web::Json(expense) = body;
 
     crate::queries::create_expense(&email, group_id, expense, &pool)
@@ -127,6 +129,24 @@ pub async fn create_expense(
         .map_err(handle_unknown_error)?;
 
     Ok(HttpResponse::Ok().json(()))
+}
+
+#[get("/groups/{group_id}/expenses")]
+pub async fn fetch_expenses(
+    identity: Identity,
+    group_id: web::Path<i32>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+    let email = identity.identity().unwrap().email;
+    let group_id = group_id.into_inner();
+
+    // TODO - check that current user is joined in group - moliva - 2024/03/21
+
+    let expenses = crate::queries::find_expenses(&email, group_id, &pool)
+        .await
+        .map_err(handle_unknown_error)?;
+
+    Ok(HttpResponse::Ok().json(&expenses))
 }
 
 // *****************************************************************************************************

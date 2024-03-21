@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use uuid::Uuid;
 
-use crate::models::{self, DetailedGroup, Expense, Notification};
+use crate::models::{self, DetailedGroup, Expense, GroupId, Notification};
 
 pub type DbPool = PgPool;
 
@@ -276,7 +276,7 @@ pub async fn find_currencies(pool: &DbPool) -> Result<Vec<models::Currency>, sql
 
 pub async fn create_expense(
     email: &str,
-    group_id: i32,
+    group_id: GroupId,
     expense: Expense,
     pool: &DbPool,
 ) -> Result<(), sqlx::Error> {
@@ -300,4 +300,35 @@ pub async fn create_expense(
     .await?;
 
     Ok(())
+}
+
+// TODO - paging and have `date` as separate to group easily - moliva - 2024/03/21
+pub async fn find_expenses(
+    email: &str,
+    group_id: GroupId,
+    pool: &DbPool,
+) -> Result<Vec<models::Expense>, sqlx::Error> {
+    let rows = sqlx::query!("SELECT * FROM expenses ORDER BY date DESC")
+        .fetch_all(pool)
+        .await?;
+
+    let expenses = rows
+        .into_iter()
+        .map(|r| models::Expense {
+            id: Some(r.id),
+            group_id: Some(r.group_id),
+            description: r.description,
+            currency_id: r.currency_id,
+            amount: r.amount,
+            date: r.date,
+            split_strategy: serde_json::from_value(r.split_strategy)
+                .expect("deserialized split strategy"),
+            created_by_id: Some(r.created_by_id),
+            created_at: Some(r.created_at),
+            updated_by_id: Some(r.updated_by_id),
+            updated_at: Some(r.updated_at),
+        })
+        .collect::<Vec<_>>();
+
+    Ok(expenses)
 }

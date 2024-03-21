@@ -67,6 +67,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::groups::fetch_notifications)
             .service(routes::groups::fetch_currencies)
             .service(routes::groups::create_expense)
+            .service(routes::groups::fetch_expenses)
     })
     .bind((host, port))
     .unwrap_or_else(|_| panic!("Cannot bind to port {port}"))

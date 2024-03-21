@@ -110,6 +110,25 @@ pub async fn create_memberships(
     Ok(HttpResponse::Ok().json(()))
 }
 
+#[post("/groups/{group_id}/expenses")]
+pub async fn create_expense(
+    identity: Identity,
+    group_id: web::Path<i32>,
+    body: web::Json<models::Expense>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+    let email = identity.identity().unwrap().email;
+    let group_id = group_id.into_inner();
+
+    let web::Json(expense) = body;
+
+    crate::queries::create_expense(&email, group_id, expense, &pool)
+        .await
+        .map_err(handle_unknown_error)?;
+
+    Ok(HttpResponse::Ok().json(()))
+}
+
 // *****************************************************************************************************
 // *************** HTTP Utils ***************
 // *****************************************************************************************************

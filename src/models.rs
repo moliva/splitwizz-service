@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 pub type GroupId = i32;
+pub type UserId = String;
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Deserialize, Serialize)]
 // #[derive(Clone, Debug, PartialEq, PartialOrd, sqlx::Type, Deserialize, Serialize)]
@@ -36,7 +37,7 @@ pub enum UserStatus {
 
 #[derive(Serialize, Deserialize, sqlx::FromRow, Debug)]
 pub struct User {
-    pub id: String,
+    pub id: UserId,
     pub email: String,
     pub status: UserStatus,
     pub name: Option<String>,
@@ -96,16 +97,28 @@ pub struct Currency {
 
 #[derive(Serialize, Deserialize, sqlx::FromRow)]
 pub struct Expense {
-    pub id: i32,
+    pub id: Option<i32>,
+    pub group_id: Option<GroupId>,
 
-    pub payer: User,
-    // pub group: Group,
-    pub description: String, // move to its own type
-    pub currency: Currency,
+    pub description: String,
+    pub currency_id: i32,
     pub amount: f64,
     pub date: chrono::DateTime<chrono::Utc>,
-    pub split_strategy: String, // change for a struct with the actual split
+    pub split_strategy: SplitStrategy,
 
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub created_by_id: Option<UserId>,
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+
+    pub updated_by_id: Option<UserId>,
+    pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+#[derive(Clone, Debug, PartialEq, PartialOrd, Deserialize, Serialize)]
+#[serde(tag = "kind")]
+#[serde(rename_all(serialize = "lowercase", deserialize = "lowercase"))]
+pub enum SplitStrategy {
+    Equally {
+        payer: UserId,
+        split_between: Vec<UserId>,
+    },
 }

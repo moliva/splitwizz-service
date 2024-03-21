@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use uuid::Uuid;
 
-use crate::models::{self, DetailedGroup, Notification};
+use crate::models::{self, DetailedGroup, Expense, Notification};
 
 pub type DbPool = PgPool;
 
@@ -272,4 +272,32 @@ pub async fn find_currencies(pool: &DbPool) -> Result<Vec<models::Currency>, sql
     sqlx::query_as!(models::Currency, "SELECT * FROM currencies ORDER BY id")
         .fetch_all(pool)
         .await
+}
+
+pub async fn create_expense(
+    email: &str,
+    group_id: i32,
+    expense: Expense,
+    pool: &DbPool,
+) -> Result<(), sqlx::Error> {
+    let serialized_value = serde_json::to_value(&expense.split_strategy).expect("serialized value");
+    sqlx::query!(
+        r#"INSERT INTO expenses (created_by_id, updated_by_id, group_id, description, currency_id, amount, date, split_strategy)
+           SELECT                u.id,          u.id,          $2,       $3,          $4,          $5,     $6,   $7
+           FROM users u
+           WHERE u.email = $1
+           LIMIT 1
+         "#,
+        email,
+        group_id,
+        expense.description,
+        expense.currency_id,
+        expense.amount,
+        expense.date,
+        serialized_value,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
 }

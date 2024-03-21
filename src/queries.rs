@@ -308,9 +308,12 @@ pub async fn find_expenses(
     group_id: GroupId,
     pool: &DbPool,
 ) -> Result<Vec<models::Expense>, sqlx::Error> {
-    let rows = sqlx::query!("SELECT * FROM expenses ORDER BY date DESC")
-        .fetch_all(pool)
-        .await?;
+    let rows = sqlx::query!(
+        "SELECT * FROM expenses WHERE group_id = $1 ORDER BY date DESC",
+        group_id
+    )
+    .fetch_all(pool)
+    .await?;
 
     let expenses = rows
         .into_iter()

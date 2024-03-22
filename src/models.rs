@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 pub type GroupId = i32;
@@ -66,10 +68,24 @@ pub struct MembershipUpdate {
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow)]
+pub struct InternalMembership {
+    pub user_id: UserId,
+    // pub status: MembershipStatus,
+    // pub status_updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Serialize, Deserialize, sqlx::FromRow)]
 pub struct Membership {
     pub user: User,
     pub status: MembershipStatus,
     pub status_updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Balance {
+    pub user_id: UserId,
+    pub total: HashMap<CurrencyId, f64>,
+    pub owes: HashMap<UserId, HashMap<CurrencyId, f64>>,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow)]
@@ -88,9 +104,11 @@ pub struct MembershipInvitation {
     pub emails: Vec<String>,
 }
 
+pub type CurrencyId = i32;
+
 #[derive(Serialize, Deserialize, sqlx::FromRow)]
 pub struct Currency {
-    pub id: i32,
+    pub id: CurrencyId,
     pub acronym: String,
     pub description: String,
 }

@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 use actix_web::{
     error::ErrorInternalServerError, get, post, put, web, Error, HttpResponse, Result,
 };
 
 use crate::identity::Identity;
-use crate::models;
+use crate::models::{self, Balance};
 use crate::queries::DbPool;
 
 #[get("/currencies")]
@@ -129,6 +131,108 @@ pub async fn create_expense(
         .map_err(handle_unknown_error)?;
 
     Ok(HttpResponse::Ok().json(()))
+}
+
+#[get("/groups/{group_id}/balances")]
+pub async fn fetch_balances(
+    identity: Identity,
+    group_id: web::Path<i32>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+    let email = identity.identity().unwrap().email;
+    let group_id = group_id.into_inner();
+
+    // TODO - check that current user is joined in group - moliva - 2024/03/21
+
+    let expenses = crate::queries::find_expenses(&email, group_id, &pool)
+        .await
+        .map_err(handle_unknown_error)?;
+
+    let memberships = crate::queries::find_memberships(&email, group_id, &pool)
+        .await
+        .map_err(handle_unknown_error)?;
+
+    let mut balances =
+        HashMap::<models::UserId, models::Balance>::from_iter(memberships.into_iter().map(|m| {
+            (
+                m.user_id.clone(),
+                Balance {
+                    user_id: m.user_id,
+                    total: HashMap::default(),
+                    owes: HashMap::default(),
+                },
+            )
+        }));
+
+    // TODO - simplified balances - moliva - 2024/03/22
+
+    for expense in expenses {
+        match expense.split_strategy {
+            models::SplitStrategy::Equally {
+                payer,
+                split_between,
+            } => {
+                let roman = expense.amount / split_between.len() as f64;
+
+                for ower in split_between {
+                    if ower == payer {
+                        balances.entry(payer.clone()).and_modify(|balance| {
+                            balance
+                                .total
+                                .entry(expense.currency_id)
+                                .and_modify(|a| *a -= expense.amount - roman)
+                                .or_insert(-expense.amount + roman);
+                        });
+
+                        // nothing more to do here
+                        continue;
+                    }
+
+                    balances.entry(ower.clone()).and_modify(|balance| {
+                        balance
+                            .total
+                            .entry(expense.currency_id)
+                            .and_modify(|a| *a += roman)
+                            .or_insert(roman);
+
+                        balance
+                            .owes
+                            .entry(payer.clone())
+                            .and_modify(|debts| {
+                                debts
+                                    .entry(expense.currency_id)
+                                    .and_modify(|a| *a += roman)
+                                    .or_insert(roman);
+                            })
+                            .or_insert_with(|| {
+                                let mut debts = HashMap::default();
+                                debts.insert(expense.currency_id, roman);
+                                debts
+                            });
+                    });
+
+                    balances.entry(payer.clone()).and_modify(|balance| {
+                        balance
+                            .owes
+                            .entry(ower.clone())
+                            .and_modify(|debts| {
+                                debts
+                                    .entry(expense.currency_id)
+                                    .and_modify(|a| *a -= roman)
+                                    .or_insert(-roman);
+                            })
+                            .or_insert_with(|| {
+                                let mut debts = HashMap::default();
+                                debts.insert(expense.currency_id, -roman);
+                                debts
+                            });
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(HttpResponse::Ok().json(&balances.values().collect::<Vec<_>>()))
 }
 
 #[get("/groups/{group_id}/expenses")]

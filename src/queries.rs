@@ -61,6 +61,24 @@ pub async fn find_groups(email: &str, pool: &DbPool) -> Result<Vec<models::Group
     .await
 }
 
+pub async fn find_memberships(
+    email: &str,
+    group_id: models::GroupId,
+    pool: &DbPool,
+) -> Result<Vec<models::InternalMembership>, sqlx::Error> {
+    sqlx::query_as!(
+        models::InternalMembership,
+        "SELECT m.user_id
+         FROM memberships m
+         WHERE m.group_id = $1
+         AND m.status = 'joined'
+         ORDER BY m.user_id",
+        group_id
+    )
+    .fetch_all(pool)
+    .await
+}
+
 pub async fn find_group(
     email: &str,
     group_id: models::GroupId,

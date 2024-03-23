@@ -229,6 +229,53 @@ pub async fn fetch_balances(
                     });
                 }
             }
+            models::SplitStrategy::Payment { payer, recipient } => {
+                balances.entry(payer.clone()).and_modify(|balance| {
+                    balance
+                        .total
+                        .entry(expense.currency_id)
+                        .and_modify(|a| *a -= expense.amount)
+                        .or_insert(-expense.amount);
+
+                    balance
+                        .owes
+                        .entry(recipient.clone())
+                        .and_modify(|debts| {
+                            debts
+                                .entry(expense.currency_id)
+                                .and_modify(|a| *a -= expense.amount)
+                                .or_insert(-expense.amount);
+                        })
+                        .or_insert_with(|| {
+                            let mut debts = HashMap::default();
+                            debts.insert(expense.currency_id, -expense.amount);
+                            debts
+                        });
+                });
+
+                balances.entry(recipient.clone()).and_modify(|balance| {
+                    balance
+                        .total
+                        .entry(expense.currency_id)
+                        .and_modify(|a| *a += expense.amount)
+                        .or_insert(expense.amount);
+
+                    balance
+                        .owes
+                        .entry(payer.clone())
+                        .and_modify(|debts| {
+                            debts
+                                .entry(expense.currency_id)
+                                .and_modify(|a| *a += expense.amount)
+                                .or_insert(expense.amount);
+                        })
+                        .or_insert_with(|| {
+                            let mut debts = HashMap::default();
+                            debts.insert(expense.currency_id, expense.amount);
+                            debts
+                        });
+                });
+            }
         }
     }
 

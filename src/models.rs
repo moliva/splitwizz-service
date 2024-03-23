@@ -139,4 +139,8 @@ pub enum SplitStrategy {
         payer: UserId,
         split_between: Vec<UserId>,
     },
+    Payment {
+        payer: UserId,
+        recipient: UserId,
+    },
 }

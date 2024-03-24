@@ -113,7 +113,7 @@ pub struct Currency {
     pub description: String,
 }
 
-#[derive(Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Expense {
     pub id: Option<i32>,
     pub group_id: Option<GroupId>,

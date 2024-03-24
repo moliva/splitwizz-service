@@ -176,18 +176,11 @@ pub async fn fetch_balances(
 
                 for ower in split_between {
                     if ower == payer {
-                        balances.entry(payer.clone()).and_modify(|balance| {
-                            balance
-                                .total
-                                .entry(expense.currency_id)
-                                .and_modify(|a| *a -= expense.amount - roman)
-                                .or_insert(-expense.amount + roman);
-                        });
-
-                        // nothing more to do here
+                        // nothing to do here
                         continue;
                     }
 
+                    // add bill to ower in relation to payer
                     balances.entry(ower.clone()).and_modify(|balance| {
                         balance
                             .total
@@ -211,7 +204,14 @@ pub async fn fetch_balances(
                             });
                     });
 
+                    // decrease bill from payer in realtion to ower
                     balances.entry(payer.clone()).and_modify(|balance| {
+                        balance
+                            .total
+                            .entry(expense.currency_id)
+                            .and_modify(|a| *a -= roman)
+                            .or_insert(-roman);
+
                         balance
                             .owes
                             .entry(ower.clone())

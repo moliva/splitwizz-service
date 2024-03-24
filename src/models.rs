@@ -5,27 +5,13 @@ use serde::{Deserialize, Serialize};
 pub type GroupId = i32;
 pub type UserId = String;
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Deserialize, Serialize)]
-// #[derive(Clone, Debug, PartialEq, PartialOrd, sqlx::Type, Deserialize, Serialize)]
-// #[sqlx(type_name = "membership_status", rename_all = "lowercase")]
+#[derive(Clone, Debug, PartialEq, PartialOrd, sqlx::Type, Deserialize, Serialize)]
+#[sqlx(type_name = "membership_status", rename_all = "lowercase")]
 #[serde(rename_all(serialize = "lowercase", deserialize = "lowercase"))]
 pub enum MembershipStatus {
     Pending,
     Joined,
     Rejected,
-}
-
-impl MembershipStatus {
-    pub fn from_str(s: &str) -> Option<Self> {
-        use MembershipStatus::*;
-
-        Some(match s {
-            "pending" => Pending,
-            "joined" => Joined,
-            "rejected" => Rejected,
-            _ => return None,
-        })
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, sqlx::Type, Deserialize, Serialize)]
@@ -63,8 +49,7 @@ pub struct Group {
 
 #[derive(Serialize, Deserialize, sqlx::FromRow)]
 pub struct MembershipUpdate {
-    // pub status: MembershipStatus,
-    pub status: String,
+    pub status: MembershipStatus,
 }
 
 #[derive(Serialize, Deserialize, sqlx::FromRow)]

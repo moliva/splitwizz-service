@@ -1,7 +1,9 @@
+CREATE TYPE membership_status AS ENUM ('pending', 'joined', 'rejected');
+
 CREATE TABLE memberships (
   user_id VARCHAR NOT NULL,
   group_id SERIAL NOT NULL,
-  status VARCHAR DEFAULT 'pending' NOT NULL,
+  status membership_status DEFAULT 'pending' NOT NULL,
   status_updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL, 
 
   FOREIGN KEY (user_id) REFERENCES users(id),

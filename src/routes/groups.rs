@@ -88,7 +88,7 @@ pub async fn update_membership(
 
     let web::Json(models::MembershipUpdate { status }) = membership_invitation;
 
-    crate::queries::update_membership(&email, &status, group_id, &pool)
+    crate::queries::update_membership(&email, status, group_id, &pool)
         .await
         .map_err(handle_unknown_error)?;
 

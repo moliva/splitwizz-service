@@ -106,10 +106,10 @@ pub async fn find_group(
     .await?;
 
     let memberships = sqlx::query!(
-        "SELECT m.user_id, m.status, m.status_updated_at
+        r#"SELECT m.user_id, m.status AS "status!: models::MembershipStatus", m.status_updated_at
          FROM memberships m
          WHERE m.group_id = $1
-         ORDER BY m.user_id",
+         ORDER BY m.user_id"#,
         group_id
     )
     .fetch_all(pool)
@@ -131,7 +131,7 @@ pub async fn find_group(
         .zip(membership_details.into_iter())
         .map(|(m, user)| models::Membership {
             user,
-            status: models::MembershipStatus::from_str(&m.status).expect("membership status"),
+            status: m.status,
             status_updated_at: m.status_updated_at,
         })
         .collect::<Vec<_>>();
@@ -181,7 +181,7 @@ pub async fn create_group(
 
 pub async fn update_membership(
     email: &str,
-    status: &str,
+    status: models::MembershipStatus,
     group: models::GroupId,
     pool: &DbPool,
 ) -> Result<(), sqlx::Error> {
@@ -193,7 +193,7 @@ pub async fn update_membership(
          "#,
         email,
         group,
-        status,
+        status as models::MembershipStatus,
     )
     .execute(pool)
     .await?;

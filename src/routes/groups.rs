@@ -76,10 +76,37 @@ pub async fn fetch_detailed_group(
     Ok(HttpResponse::Ok().json(&group))
 }
 
+#[put("/notifications")]
+pub async fn update_notifications(
+    notifications_update: web::Json<models::NotificationsUpdate>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+    crate::queries::update_notifications(notifications_update.0, &pool)
+        .await
+        .map_err(handle_unknown_error)?;
+
+    Ok(HttpResponse::Ok().json(()))
+}
+
+#[put("/notifications/{notification_id}")]
+pub async fn update_notification(
+    path: web::Path<i32>,
+    notification_update: web::Json<models::NotificationUpdate>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+    let notification_id = path.into_inner();
+
+    crate::queries::update_notification(notification_id, notification_update.0, &pool)
+        .await
+        .map_err(handle_unknown_error)?;
+
+    Ok(HttpResponse::Ok().json(()))
+}
+
 #[put("/groups/{group_id}/memberships")]
 pub async fn update_membership(
     identity: Identity,
-    group_id: web::Path<i32>,
+    group_id: web::Path<models::GroupId>,
     membership_invitation: web::Json<models::MembershipUpdate>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
@@ -97,15 +124,17 @@ pub async fn update_membership(
 
 #[post("/groups/{group_id}/memberships")]
 pub async fn create_memberships(
+    identity: Identity,
     group_id: web::Path<i32>,
     membership_invitation: web::Json<models::MembershipInvitation>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
+    let email = identity.identity().unwrap().email;
     let group_id = group_id.into_inner();
 
     let web::Json(models::MembershipInvitation { emails }) = membership_invitation;
 
-    crate::queries::create_membership_invites(&emails, group_id, &pool)
+    crate::queries::create_membership_invites(&email, &emails, group_id, &pool)
         .await
         .map_err(handle_unknown_error)?;
 
@@ -148,7 +177,7 @@ pub async fn fetch_balances(
         .await
         .map_err(handle_unknown_error)?;
 
-    let memberships = crate::queries::find_memberships(&email, group_id, &pool)
+    let memberships = crate::queries::find_memberships(group_id, &pool)
         .await
         .map_err(handle_unknown_error)?;
 

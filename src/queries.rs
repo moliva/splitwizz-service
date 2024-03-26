@@ -522,30 +522,13 @@ pub async fn find_expenses(
     group_id: GroupId,
     pool: &DbPool,
 ) -> Result<Vec<models::Expense>, sqlx::Error> {
-    let rows = sqlx::query!(
+    let expenses = sqlx::query_as!(
+        models::Expense,
         "SELECT * FROM expenses WHERE group_id = $1 ORDER BY date DESC",
         group_id
     )
     .fetch_all(pool)
     .await?;
-
-    let expenses = rows
-        .into_iter()
-        .map(|r| models::Expense {
-            id: Some(r.id),
-            group_id: Some(r.group_id),
-            description: r.description,
-            currency_id: r.currency_id,
-            amount: r.amount,
-            date: r.date,
-            split_strategy: serde_json::from_value(r.split_strategy)
-                .expect("deserialized split strategy"),
-            created_by_id: Some(r.created_by_id),
-            created_at: Some(r.created_at),
-            updated_by_id: Some(r.updated_by_id),
-            updated_at: Some(r.updated_at),
-        })
-        .collect::<Vec<_>>();
 
     Ok(expenses)
 }

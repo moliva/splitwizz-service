@@ -17,4 +17,3 @@ then
   echo "Pushing image to registry: $repository_name"
   docker push "$repository_name"
 fi
-

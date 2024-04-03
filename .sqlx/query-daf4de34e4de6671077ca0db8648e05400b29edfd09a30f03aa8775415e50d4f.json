@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.user_id, m.group_id, m.created_by_id\n         FROM memberships m\n         WHERE m.group_id = $1\n         AND m.status = 'joined'\n         ORDER BY m.user_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "group_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "created_by_id",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "daf4de34e4de6671077ca0db8648e05400b29edfd09a30f03aa8775415e50d4f"
+}

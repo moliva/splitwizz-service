@@ -1,0 +1,63 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT n.id, n.status AS \"status!: models::NotificationStatus\", n.user_id, n.data, n.status_updated_at, n.created_at\n         FROM users u, notifications n\n         WHERE n.user_id = u.id AND u.email = $1\n         AND n.status != 'archived'\n         ORDER BY n.created_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "status!: models::NotificationStatus",
+        "type_info": {
+          "Custom": {
+            "name": "notification_status",
+            "kind": {
+              "Enum": [
+                "new",
+                "read",
+                "archived"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "user_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "data",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 4,
+        "name": "status_updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2fc697884fbc5ee34bfed8bffe3835a1a8a9a5e1f8cb0beb8d62b7fb14356368"
+}

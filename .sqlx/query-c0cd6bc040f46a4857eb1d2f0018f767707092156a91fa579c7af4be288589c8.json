@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memberships (user_id, group_id, status, created_by_id)\n        SELECT u.id, $2, 'joined', u.id\n        FROM users u\n        WHERE u.email = $1 LIMIT 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c0cd6bc040f46a4857eb1d2f0018f767707092156a91fa579c7af4be288589c8"
+}

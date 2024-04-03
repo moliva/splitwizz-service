@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE notifications\n         SET status = $2\n         WHERE id IN (SELECT * FROM UNNEST($1::integer[]))\n         ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4Array",
+        {
+          "Custom": {
+            "name": "notification_status",
+            "kind": {
+              "Enum": [
+                "new",
+                "read",
+                "archived"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c9c6058c2f6b1320b4fbec0369b0baa1c331d2a79cb2c3ac231d38a72421eee8"
+}

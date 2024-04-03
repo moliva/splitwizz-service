@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO groups (name, creator_id) \n        SELECT $1, u.id\n        FROM users u\n        WHERE u.email = $2 LIMIT 1\n        RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "540715bd44d201f0a5d755e7b9f6254cd9a2f3ad900efb4a0aba42cb89025bc1"
+}

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO notifications (user_id, data)\n           SELECT CASE WHEN u.id = $3 THEN $4 ELSE $3 END, $2\n           FROM users u\n           WHERE u.email = $1\n         ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Jsonb",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b03b82d1a583e95b0ef82e3ec79b885d7482e3588abdc43b54e94b44fddfc4ad"
+}

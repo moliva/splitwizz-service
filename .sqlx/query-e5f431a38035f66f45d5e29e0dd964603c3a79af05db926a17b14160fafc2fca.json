@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE notifications\n         SET status = $2\n         WHERE id = $1\n         ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        {
+          "Custom": {
+            "name": "notification_status",
+            "kind": {
+              "Enum": [
+                "new",
+                "read",
+                "archived"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e5f431a38035f66f45d5e29e0dd964603c3a79af05db926a17b14160fafc2fca"
+}

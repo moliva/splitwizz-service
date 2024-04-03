@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO expenses (created_by_id, updated_by_id, group_id, description, currency_id, amount, date, split_strategy)\n           SELECT                u.id,          u.id,          $2,       $3,          $4,          $5,     $6,   $7\n           FROM users u\n           WHERE u.email = $1\n           LIMIT 1\n           RETURNING id\n         ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4",
+        "Varchar",
+        "Int4",
+        "Float8",
+        "Timestamptz",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "78186e5e415b777b6637d6d4034552b1d927647cd7f625901cb367d07b28ab12"
+}

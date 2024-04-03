@@ -1,0 +1,82 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.*\n         FROM expenses e, (SELECT * FROM UNNEST($1::integer[])) as t(i)\n         WHERE e.id = t.i",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "group_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "currency_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "amount",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 5,
+        "name": "date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "split_strategy",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_by_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "updated_by_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "117721bc99b56cff30743d7a7c9a8ac072981163f984ef022b841a749520997c"
+}

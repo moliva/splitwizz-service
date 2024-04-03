@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.user_id, m.group_id, m.created_by_id\n         FROM memberships m, (SELECT * FROM UNNEST($2::integer[])) as t(i), users u\n         WHERE m.group_id = t.i\n         AND u.email = $1 AND u.id = m.user_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "group_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "created_by_id",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "57823bb924d9caa886417ec136717b8547fc53dd5019e58c616f289cc278d0a1"
+}

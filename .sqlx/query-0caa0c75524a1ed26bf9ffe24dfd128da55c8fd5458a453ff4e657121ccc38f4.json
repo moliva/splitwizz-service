@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.user_id, m.status AS \"status!: models::MembershipStatus\", m.status_updated_at\n         FROM memberships m\n         WHERE m.group_id = $1\n         ORDER BY m.user_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "status!: models::MembershipStatus",
+        "type_info": {
+          "Custom": {
+            "name": "membership_status",
+            "kind": {
+              "Enum": [
+                "pending",
+                "joined",
+                "rejected"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "status_updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0caa0c75524a1ed26bf9ffe24dfd128da55c8fd5458a453ff4e657121ccc38f4"
+}

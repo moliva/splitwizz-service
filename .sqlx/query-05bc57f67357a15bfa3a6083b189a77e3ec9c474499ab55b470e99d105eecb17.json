@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO users (email, status, id)\n         SELECT e, $3, i\n         FROM UNNEST($1::text[], $2::text[]) as t (e, i)\n         ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        {
+          "Custom": {
+            "name": "user_status",
+            "kind": {
+              "Enum": [
+                "invited",
+                "active",
+                "inactive"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "05bc57f67357a15bfa3a6083b189a77e3ec9c474499ab55b470e99d105eecb17"
+}

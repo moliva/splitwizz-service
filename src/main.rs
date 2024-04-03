@@ -1,4 +1,4 @@
-use std::{env, str};
+use std::env;
 
 use actix_cors::Cors;
 use actix_web::web::Data;
@@ -14,10 +14,6 @@ mod models;
 mod queries;
 mod routes;
 mod utils;
-
-// TODO - use this to discover all the services instead of hardcoding them
-const _GOOGLE_DISCOVERY_ENDPOINT: &str =
-    "https://accounts.google.com/.well-known/openid-configuration";
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

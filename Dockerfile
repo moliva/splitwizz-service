@@ -7,7 +7,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM rust as cacher
 WORKDIR /app
 RUN cargo install cargo-chef
-COPY sqlx-data.json /app/sqlx-data.json
+COPY .sqlx /app/.sqlx
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 

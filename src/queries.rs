@@ -465,6 +465,19 @@ pub async fn find_currencies(pool: &DbPool) -> Result<Vec<models::Currency>, sql
         .await
 }
 
+pub async fn delete_expense(
+    _email: &str,
+    _group_id: GroupId,
+    expense_id: i32,
+    pool: &DbPool,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(r#"DELETE FROM expenses WHERE id = $1"#, expense_id)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
 pub async fn create_expense(
     email: &str,
     group_id: GroupId,

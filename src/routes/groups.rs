@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use actix_web::delete;
 use actix_web::{
     error::ErrorInternalServerError, get, post, put, web, Error, HttpResponse, Result,
 };
@@ -135,6 +136,24 @@ pub async fn create_memberships(
     let web::Json(models::MembershipInvitation { emails }) = membership_invitation;
 
     crate::queries::create_membership_invites(&email, &emails, group_id, &pool)
+        .await
+        .map_err(handle_unknown_error)?;
+
+    Ok(HttpResponse::Ok().json(()))
+}
+
+#[delete("/groups/{group_id}/expenses/{expense_id}")]
+pub async fn delete_expense(
+    identity: Identity,
+    path: web::Path<(models::GroupId, i32)>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+    let email = identity.identity().unwrap().email;
+    let (group_id, expense_id) = path.into_inner();
+
+    // TODO - check that current user is joined in group - moliva - 2024/03/21
+
+    crate::queries::delete_expense(&email, group_id, expense_id, &pool)
         .await
         .map_err(handle_unknown_error)?;
 

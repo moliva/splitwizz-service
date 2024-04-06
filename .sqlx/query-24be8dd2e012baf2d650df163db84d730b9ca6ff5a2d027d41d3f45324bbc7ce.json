@@ -20,7 +20,22 @@
       },
       {
         "ordinal": 3,
+        "name": "default_currency_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "balance_config",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 5,
         "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
         "type_info": "Timestamptz"
       }
     ],
@@ -30,6 +45,9 @@
       ]
     },
     "nullable": [
+      false,
+      false,
+      false,
       false,
       false,
       false,

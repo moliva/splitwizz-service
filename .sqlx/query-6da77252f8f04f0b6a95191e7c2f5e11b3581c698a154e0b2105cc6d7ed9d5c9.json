@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE groups\n       SET name = $1, default_currency_id = $2, balance_config = $3\n       WHERE id = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int4",
+        "Jsonb",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6da77252f8f04f0b6a95191e7c2f5e11b3581c698a154e0b2105cc6d7ed9d5c9"
+}

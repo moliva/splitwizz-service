@@ -166,6 +166,8 @@ pub struct Expense {
     pub id: Option<ExpenseId>,
     pub group_id: Option<GroupId>,
 
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
     pub deleted: bool,
 
     pub description: String,

@@ -504,9 +504,14 @@ pub async fn delete_expense(
     expense_id: i32,
     pool: &DbPool,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query!(r#"DELETE FROM expenses WHERE id = $1"#, expense_id)
-        .execute(pool)
-        .await?;
+    sqlx::query!(
+        r#"UPDATE expenses 
+        SET deleted = true
+        WHERE id = $1"#,
+        expense_id
+    )
+    .execute(pool)
+    .await?;
 
     Ok(())
 }
@@ -570,7 +575,11 @@ pub async fn find_expenses(
 ) -> Result<Vec<models::Expense>, sqlx::Error> {
     let expenses = sqlx::query_as!(
         models::Expense,
-        "SELECT * FROM expenses WHERE group_id = $1 ORDER BY date DESC",
+        r#"SELECT *
+           FROM expenses
+           WHERE group_id = $1
+           AND deleted = false
+           ORDER BY date DESC"#,
         group_id
     )
     .fetch_all(pool)

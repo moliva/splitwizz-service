@@ -122,7 +122,6 @@ pub struct DetailedGroup {
     pub members: Vec<Membership>,
 }
 
-
 #[derive(Serialize, Deserialize, sqlx::FromRow)]
 pub struct MembershipUpdate {
     pub status: MembershipStatus,
@@ -166,6 +165,8 @@ pub struct Currency {
 pub struct Expense {
     pub id: Option<ExpenseId>,
     pub group_id: Option<GroupId>,
+
+    pub deleted: bool,
 
     pub description: String,
     pub currency_id: i32,

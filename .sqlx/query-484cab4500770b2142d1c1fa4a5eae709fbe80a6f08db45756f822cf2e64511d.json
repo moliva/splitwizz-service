@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM expenses WHERE group_id = $1 ORDER BY date DESC",
+  "query": "SELECT *\n           FROM expenses\n           WHERE group_id = $1\n           AND deleted = false\n           ORDER BY date DESC",
   "describe": {
     "columns": [
       {
@@ -15,46 +15,51 @@
       },
       {
         "ordinal": 2,
+        "name": "deleted",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
         "name": "description",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "currency_id",
         "type_info": "Int4"
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "amount",
         "type_info": "Float8"
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "date",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "split_strategy",
         "type_info": "Jsonb"
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "created_by_id",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "updated_by_id",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "updated_at",
         "type_info": "Timestamptz"
       }
@@ -75,8 +80,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "6d82ed051e5d8d6c6bfcc2027cc05311f485d619cc23c2997180bbb8113664a0"
+  "hash": "484cab4500770b2142d1c1fa4a5eae709fbe80a6f08db45756f822cf2e64511d"
 }

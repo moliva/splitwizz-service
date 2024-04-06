@@ -107,7 +107,7 @@ pub async fn find_group(
     pool: &DbPool,
 ) -> Result<models::DetailedGroup, sqlx::Error> {
     let base_group = sqlx::query!(
-        "SELECT g.id, g.name, g.created_at, g.creator_id
+        "SELECT g.id, g.name, g.created_at, g.creator_id, g.updated_at, g.balance_config, g.default_currency_id
          FROM users u, memberships m, groups g
          WHERE g.id = $1
          AND u.email = $2 AND m.user_id = u.id AND m.status = 'joined'",
@@ -164,23 +164,56 @@ pub async fn find_group(
         created_at: base_group.created_at,
         creator,
         members,
+        creator_id: base_group.creator_id,
+        default_currency_id: base_group.default_currency_id,
+        balance_config: base_group.balance_config.into(),
+        updated_at: base_group.updated_at,
     })
+}
+
+pub async fn update_group(
+    _email: &str,
+    group_id: models::GroupId,
+    group: models::Group,
+    pool: &DbPool,
+) -> Result<(), sqlx::Error> {
+    // create group
+    let value: serde_json::Value = group.balance_config.into();
+
+    sqlx::query!(
+        "UPDATE groups
+       SET name = $1, default_currency_id = $2, balance_config = $3
+       WHERE id = $4",
+        group.name,
+        group.default_currency_id,
+        value,
+        group_id,
+    )
+    .execute(pool)
+    .await?;
+
+    // TODO - get the id from the new group - moliva - 2024/03/10
+    Ok(())
 }
 
 pub async fn create_group(
     email: &str,
-    group: &models::Group,
+    group: models::Group,
     pool: &DbPool,
 ) -> Result<(), sqlx::Error> {
     // create group
+    let value: serde_json::Value = group.balance_config.into();
+
     let result = sqlx::query!(
-        "INSERT INTO groups (name, creator_id) 
-        SELECT $1, u.id
+        "INSERT INTO groups (name, creator_id, default_currency_id, balance_config) 
+        SELECT $2, u.id, $3, $4
         FROM users u
-        WHERE u.email = $2 LIMIT 1
+        WHERE u.email = $1 LIMIT 1
         RETURNING id",
+        email,
         group.name,
-        email
+        group.default_currency_id,
+        value,
     )
     .fetch_one(pool)
     .await?;
@@ -531,7 +564,7 @@ pub async fn create_expense(
 
 // TODO - paging and have `date` as separate to group easily - moliva - 2024/03/21
 pub async fn find_expenses(
-    email: &str,
+    _email: &str,
     group_id: GroupId,
     pool: &DbPool,
 ) -> Result<Vec<models::Expense>, sqlx::Error> {

@@ -53,8 +53,27 @@ pub async fn create_group(
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
     let email = identity.identity().unwrap().email;
+    let web::Json(group) = group;
 
-    crate::queries::create_group(&email, &group, &pool)
+    crate::queries::create_group(&email, group, &pool)
+        .await
+        .map_err(handle_unknown_error)?;
+
+    Ok(HttpResponse::Ok().json(()))
+}
+
+#[put("/groups/{group_id}")]
+pub async fn edit_group(
+    identity: Identity,
+    path: web::Path<models::GroupId>,
+    group: web::Json<models::Group>,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+    let email = identity.identity().unwrap().email;
+    let web::Json(group) = group;
+    let group_id = path.into_inner();
+
+    crate::queries::update_group(&email, group_id, group, &pool)
         .await
         .map_err(handle_unknown_error)?;
 

@@ -74,14 +74,54 @@ pub struct Notification {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "snake_case"))]
+pub struct BalanceConfig {
+    simplified: bool,
+}
+
+impl Into<serde_json::Value> for BalanceConfig {
+    fn into(self) -> serde_json::Value {
+        serde_json::to_value(self).expect("serialized value")
+    }
+}
+
+impl From<serde_json::Value> for BalanceConfig {
+    fn from(value: serde_json::Value) -> Self {
+        serde_json::from_value(value).expect("deserialized value")
+    }
+}
+
 #[derive(Serialize, Deserialize, sqlx::FromRow, Clone)]
 pub struct Group {
     pub id: Option<GroupId>,
-    pub name: String,
 
+    pub name: String,
     pub creator_id: Option<UserId>,
+    pub default_currency_id: CurrencyId,
+    pub balance_config: BalanceConfig,
+
     pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
 }
+
+#[derive(Serialize, Deserialize, sqlx::FromRow)]
+pub struct DetailedGroup {
+    // shared with group
+    pub id: GroupId,
+
+    pub name: String,
+    pub creator_id: UserId,
+    pub default_currency_id: CurrencyId,
+    pub balance_config: BalanceConfig,
+
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+    // detailed group specific
+    pub creator: User,
+    pub members: Vec<Membership>,
+}
+
 
 #[derive(Serialize, Deserialize, sqlx::FromRow)]
 pub struct MembershipUpdate {
@@ -108,17 +148,6 @@ pub struct Balance {
     pub user_id: UserId,
     pub total: HashMap<CurrencyId, f64>,
     pub owes: HashMap<UserId, HashMap<CurrencyId, f64>>,
-}
-
-#[derive(Serialize, Deserialize, sqlx::FromRow)]
-pub struct DetailedGroup {
-    // shared with group
-    pub id: GroupId,
-    pub name: String,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    // detailed group specific
-    pub creator: User,
-    pub members: Vec<Membership>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

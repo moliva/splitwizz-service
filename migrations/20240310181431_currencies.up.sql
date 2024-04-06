@@ -7,6 +7,7 @@ CREATE TABLE currencies (
 INSERT INTO currencies (acronym, description)
 VALUES ('USD', 'United States Dollar'),
 ('EUR', 'Euro'),
+('GBP', 'Pound Sterling'),
 ('ARS', 'Argentine Pesos');
 
 CREATE INDEX currencies_id_index ON currencies (id);

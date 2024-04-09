@@ -1,9 +1,12 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use actix_web::delete;
 use actix_web::{
     error::ErrorInternalServerError, get, post, put, web, Error, HttpResponse, Result,
 };
+use futures::lock::Mutex;
+use redis::Commands;
 
 use crate::identity::Identity;
 use crate::models::{self, Balance};
@@ -18,16 +21,30 @@ pub async fn fetch_currencies(pool: web::Data<DbPool>) -> Result<HttpResponse, E
     Ok(HttpResponse::Ok().json(&currencies))
 }
 
+#[get("/sync")]
+pub async fn sync(identity: Identity, pool: web::Data<DbPool>) -> Result<HttpResponse, Error> {
+    let email = identity.identity().unwrap().email;
+
+    Ok(HttpResponse::Ok().json(()))
+}
+
 #[get("/notifications")]
 pub async fn fetch_notifications(
     identity: Identity,
     pool: web::Data<DbPool>,
+    redis: web::Data<Arc<Mutex<redis::Connection>>>,
 ) -> Result<HttpResponse, Error> {
     let email = identity.identity().unwrap().email;
 
     let notifications = crate::queries::find_notifications(&email, &pool)
         .await
         .map_err(handle_unknown_error)?;
+
+    redis
+        .lock()
+        .await
+        .publish::<&str, String, ()>("sync", email)
+        .expect("publish sync");
 
     Ok(HttpResponse::Ok().json(&notifications))
 }

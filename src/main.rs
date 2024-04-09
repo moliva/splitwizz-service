@@ -1,12 +1,17 @@
 use std::env;
+use std::sync::Arc;
 
 use actix_cors::Cors;
 use actix_web::web::Data;
 use actix_web::{middleware::Logger, App, HttpServer};
 use env_logger::Env;
+use futures::lock::Mutex;
 
 use crate::identity::IdentityService;
 use crate::queries::create_connection_pool;
+
+use crate::workers::inactivity::inactivity_detector;
+use crate::workers::sync::sync_thread;
 
 mod auth;
 mod identity;
@@ -14,6 +19,7 @@ mod models;
 mod queries;
 mod routes;
 mod utils;
+mod workers;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -27,6 +33,11 @@ async fn main() -> std::io::Result<()> {
 
     let db_connection = create_connection_pool(&connspec).await.unwrap();
 
+    let connspec = env::var("REDIS_URI").expect("REDIS_URI");
+    let redis_connection = redis::Client::open(connspec).expect("redis connected successfully");
+    let con = redis_connection.get_connection().expect("get connection");
+    let shared_con = Arc::new(Mutex::new(con));
+
     let port = env::var("PORT")
         .unwrap_or_else(|_| "9000".to_string())
         .parse()
@@ -38,6 +49,9 @@ async fn main() -> std::io::Result<()> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     println!("Starting server on {host}:{port}");
+
+    std::thread::spawn(sync_thread);
+    actix_web::rt::spawn(inactivity_detector());
 
     HttpServer::new(move || {
         App::new()
@@ -52,6 +66,7 @@ async fn main() -> std::io::Result<()> {
             )
             .wrap(IdentityService)
             .app_data(Data::new(db_connection.clone()))
+            .app_data(Data::new(shared_con.clone()))
             .service(routes::status::status)
             .service(routes::auth::auth)
             .service(routes::auth::login)
@@ -69,6 +84,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::groups::delete_expense)
             .service(routes::groups::fetch_expenses)
             .service(routes::groups::fetch_balances)
+            .service(routes::groups::sync)
     })
     .bind((host, port))
     .unwrap_or_else(|_| panic!("Cannot bind to port {port}"))

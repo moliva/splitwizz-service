@@ -14,38 +14,25 @@ pub async fn create_connection_pool(connspec: &str) -> Result<DbPool, sqlx::Erro
     pool.connect(connspec).await
 }
 
-pub async fn upsert_user(user: &models::User, pool: &DbPool) -> Result<bool, sqlx::Error> {
-    sqlx::query!(
+pub async fn upsert_user(user: &models::User, pool: &DbPool) -> Result<models::UserId, sqlx::Error> {
+    let record = sqlx::query!(
         r#"INSERT INTO users (id, email, name, picture, status)
          VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (email) DO UPDATE
          SET name = $3,
              picture = $4,
-             status = $5"#,
+             status = $5
+         RETURNING id"#,
         user.id,
         user.email,
         user.name,
         user.picture,
         user.status.clone() as models::UserStatus,
     )
-    .execute(pool)
-    .await
-    .map(|r| r.rows_affected() > 0u64)
-}
+    .fetch_one(pool)
+    .await?;
 
-pub async fn find_user_by_email(
-    email: &str,
-    pool: &DbPool,
-) -> Result<Option<models::User>, sqlx::Error> {
-    sqlx::query_as!(
-        models::User,
-        r#"SELECT id, email, status AS "status!: models::UserStatus", name, picture, created_at, updated_at
-         FROM users
-         WHERE email = $1"#,
-        email
-    )
-    .fetch_optional(pool)
-    .await
+    Ok(record.id)
 }
 
 async fn find_all_users(pool: &DbPool) -> Result<Vec<models::User>, sqlx::Error> {

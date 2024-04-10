@@ -9,7 +9,7 @@ use redis::Commands;
 use serde::{Deserialize, Serialize};
 
 use crate::identity::Identity;
-use crate::models::{self, Balance};
+use crate::models::{self, Balance, SplitStrategy};
 use crate::queries::DbPool;
 use crate::RedisPool;
 
@@ -52,6 +52,7 @@ pub async fn sync(identity: Identity, redis: web::Data<RedisPool>) -> Result<Htt
     let more = redis
         .rpop::<String, Vec<String>>(format!("events.{}", email), NonZeroUsize::new(99usize))
         .expect("rpop events");
+    dbg!(&more);
     events.extend(more);
 
     eprintln!("READ EVENTS SYNC {:?}", &events);
@@ -70,8 +71,7 @@ pub async fn sync(identity: Identity, redis: web::Data<RedisPool>) -> Result<Htt
                         .expect("deserialize"),
                 }
             } else {
-                // notification
-                todo!("notification event");
+                Event::Notification { id: 0 } // TODO - nevermind for now - moliva - 2024/04/10
             }
         };
         set.insert(new);
@@ -211,6 +211,7 @@ pub async fn create_memberships(
     group_id: web::Path<i32>,
     membership_invitation: web::Json<models::MembershipInvitation>,
     pool: web::Data<DbPool>,
+    redis: web::Data<RedisPool>,
 ) -> Result<HttpResponse, Error> {
     let email = identity.identity().unwrap().email;
     let group_id = group_id.into_inner();
@@ -220,6 +221,10 @@ pub async fn create_memberships(
     crate::queries::create_membership_invites(&email, &emails, group_id, &pool)
         .await
         .map_err(handle_unknown_error)?;
+
+    for invite in emails {
+        publish_topic(&redis, &format!("users.{}.notifications", invite), &email).await?;
+    }
 
     Ok(HttpResponse::Ok().json(()))
 }
@@ -257,6 +262,8 @@ pub async fn create_expense(
 
     let web::Json(expense) = body;
 
+    let split_strategy = expense.split_strategy.clone();
+
     let expense_id = crate::queries::create_expense(&email, group_id, expense, &pool)
         .await
         .map_err(handle_unknown_error)?;
@@ -267,6 +274,34 @@ pub async fn create_expense(
         &email,
     )
     .await?;
+
+    if let SplitStrategy::Payment { payer, recipient } = split_strategy {
+        let pool: &DbPool = &pool;
+
+        let r = sqlx::query!(
+            r#"
+           SELECT email
+           FROM users
+           WHERE email != $1 AND (id = $2 OR id = $3)
+           LIMIT 1
+         "#,
+            email,
+            payer,
+            recipient
+        )
+        .fetch_one(pool)
+        .await
+        .expect("id of other");
+
+        let notif_email = r.email;
+
+        publish_topic(
+            &redis,
+            &format!("users.{}.notifications", notif_email),
+            &email,
+        )
+        .await?;
+    }
 
     Ok(HttpResponse::Ok().json(()))
 }

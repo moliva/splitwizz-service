@@ -508,7 +508,7 @@ pub async fn create_expense(
     group_id: GroupId,
     expense: Expense,
     pool: &DbPool,
-) -> Result<(), sqlx::Error> {
+) -> Result<i32, sqlx::Error> {
     let serialized_value = serde_json::to_value(&expense.split_strategy).expect("serialized value");
     let r = sqlx::query!(
         r#"INSERT INTO expenses (created_by_id, updated_by_id, group_id, description, currency_id, amount, date, split_strategy)
@@ -551,7 +551,7 @@ pub async fn create_expense(
         .expect("insert notifications");
     }
 
-    Ok(())
+    Ok(r.id)
 }
 
 // TODO - paging and have `date` as separate to group easily - moliva - 2024/03/21

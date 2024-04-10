@@ -14,13 +14,14 @@ use crate::auth::{AuthData, TokenForm, TokenResponse};
 use crate::models::{User, UserStatus};
 use crate::queries::{upsert_user, DbPool};
 use crate::utils::gen_random_string;
+use crate::RedisPool;
 
 #[get("/auth")]
 async fn auth(
     _req: HttpRequest,
     auth_data: Query<AuthData>,
     pool: web::Data<DbPool>,
-    redis: web::Data<Arc<Mutex<redis::Connection>>>,
+    redis: web::Data<RedisPool>,
 ) -> HttpResponse {
     if let Some(code) = auth_data.code.as_ref() {
         let client = Client::builder().timeout(Duration::from_secs(60)).finish();
@@ -72,7 +73,7 @@ async fn auth(
             updated_at: None,
         };
 
-        let id = upsert_user(&user, &pool)
+        upsert_user(&user, &pool)
             .await
             .map_err(|e| {
                 eprintln!("{}", e);
@@ -80,9 +81,9 @@ async fn auth(
             })
             .expect("user insert");
 
-        let mut redis = redis.lock().await;
+        let mut redis = redis.get().expect("pooled conn");
         redis
-            .publish::<&str, String, ()>("login", email)
+            .publish::<&str, String, ()>("auth.login", email)
             .expect("publish login");
 
         HttpResponse::Found()

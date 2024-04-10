@@ -1,16 +1,17 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::collections::{HashMap, HashSet};
+use std::num::NonZeroUsize;
 
 use actix_web::delete;
 use actix_web::{
     error::ErrorInternalServerError, get, post, put, web, Error, HttpResponse, Result,
 };
-use futures::lock::Mutex;
 use redis::Commands;
+use serde::{Deserialize, Serialize};
 
 use crate::identity::Identity;
 use crate::models::{self, Balance};
 use crate::queries::DbPool;
+use crate::RedisPool;
 
 #[get("/currencies")]
 pub async fn fetch_currencies(pool: web::Data<DbPool>) -> Result<HttpResponse, Error> {
@@ -21,30 +22,75 @@ pub async fn fetch_currencies(pool: web::Data<DbPool>) -> Result<HttpResponse, E
     Ok(HttpResponse::Ok().json(&currencies))
 }
 
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "snake_case"))]
+#[serde(tag = "kind")]
+enum Event {
+    Group { id: models::GroupId },
+    Notification { id: i32 },
+}
+
 #[get("/sync")]
-pub async fn sync(identity: Identity, pool: web::Data<DbPool>) -> Result<HttpResponse, Error> {
+pub async fn sync(identity: Identity, redis: web::Data<RedisPool>) -> Result<HttpResponse, Error> {
     let email = identity.identity().unwrap().email;
 
-    Ok(HttpResponse::Ok().json(()))
+    let mut redis = redis.get().expect("pooled conn");
+    redis
+        .publish::<&str, &str, ()>("sync", &email)
+        .expect("publish sync");
+
+    let event = redis
+        .brpop::<String, Option<(String, String)>>(format!("events.{}", email), 15f64)
+        .expect("brpop events");
+
+    if event.is_none() {
+        return Ok(HttpResponse::Ok().json(Vec::<Event>::default()));
+    }
+
+    let mut events = vec![event.unwrap().1];
+
+    let more = redis
+        .rpop::<String, Vec<String>>(format!("events.{}", email), NonZeroUsize::new(99usize))
+        .expect("rpop events");
+    events.extend(more);
+
+    eprintln!("READ EVENTS SYNC {:?}", &events);
+    let mut set = HashSet::new();
+    for event in events {
+        let new = {
+            if event.starts_with("groups") {
+                let segments = event.splitn(3, '.');
+                let mut segments = segments.skip(1);
+
+                Event::Group {
+                    id: segments
+                        .next()
+                        .expect("group id")
+                        .parse()
+                        .expect("deserialize"),
+                }
+            } else {
+                // notification
+                todo!("notification event");
+            }
+        };
+        set.insert(new);
+    }
+    dbg!(&set);
+
+    Ok(HttpResponse::Ok().json(&set))
 }
 
 #[get("/notifications")]
 pub async fn fetch_notifications(
     identity: Identity,
     pool: web::Data<DbPool>,
-    redis: web::Data<Arc<Mutex<redis::Connection>>>,
 ) -> Result<HttpResponse, Error> {
     let email = identity.identity().unwrap().email;
 
     let notifications = crate::queries::find_notifications(&email, &pool)
         .await
         .map_err(handle_unknown_error)?;
-
-    redis
-        .lock()
-        .await
-        .publish::<&str, String, ()>("sync", email)
-        .expect("publish sync");
 
     Ok(HttpResponse::Ok().json(&notifications))
 }
@@ -202,6 +248,7 @@ pub async fn create_expense(
     group_id: web::Path<i32>,
     body: web::Json<models::Expense>,
     pool: web::Data<DbPool>,
+    redis: web::Data<RedisPool>,
 ) -> Result<HttpResponse, Error> {
     let email = identity.identity().unwrap().email;
     let group_id = group_id.into_inner();
@@ -210,11 +257,25 @@ pub async fn create_expense(
 
     let web::Json(expense) = body;
 
-    crate::queries::create_expense(&email, group_id, expense, &pool)
+    let expense_id = crate::queries::create_expense(&email, group_id, expense, &pool)
         .await
         .map_err(handle_unknown_error)?;
 
+    publish_topic(
+        &redis,
+        &format!("groups.{}.expenses.{}", group_id, expense_id),
+        &email,
+    )
+    .await?;
+
     Ok(HttpResponse::Ok().json(()))
+}
+
+async fn publish_topic(redis: &web::Data<RedisPool>, topic: &str, payload: &str) -> Result<()> {
+    let mut redis = redis.get().expect("pooled conn");
+    redis
+        .publish::<&str, &str, ()>(topic, payload)
+        .map_err(handle_unknown_redis_error)
 }
 
 #[get("/groups/{group_id}/balances")]
@@ -388,7 +449,14 @@ pub async fn fetch_expenses(
 // *************** HTTP Utils ***************
 // *****************************************************************************************************
 
+fn handle_unknown_redis_error(e: redis::RedisError) -> actix_web::Error {
+    let error = format!("redis error:\n{}", e);
+    eprintln!("{}", &error);
+    ErrorInternalServerError(error)
+}
+
 fn handle_unknown_error(e: sqlx::Error) -> actix_web::Error {
-    eprintln!("{}", e);
-    ErrorInternalServerError("internal saraza")
+    let error = format!("db error:\n{}", e);
+    eprintln!("{}", &error);
+    ErrorInternalServerError(error)
 }

@@ -6,12 +6,14 @@ use actix_web::web::Data;
 use actix_web::{middleware::Logger, App, HttpServer};
 use env_logger::Env;
 use futures::lock::Mutex;
+use r2d2::Pool;
+use redis::Client;
 
 use crate::identity::IdentityService;
 use crate::queries::create_connection_pool;
 
-use crate::workers::inactivity::inactivity_detector;
-use crate::workers::sync::sync_thread;
+use crate::workers::activity::activity_detector;
+use crate::workers::sync::topics_sync;
 
 mod auth;
 mod identity;
@@ -20,6 +22,8 @@ mod queries;
 mod routes;
 mod utils;
 mod workers;
+
+pub type RedisPool = Pool<Client>;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -35,8 +39,10 @@ async fn main() -> std::io::Result<()> {
 
     let connspec = env::var("REDIS_URI").expect("REDIS_URI");
     let redis_connection = redis::Client::open(connspec).expect("redis connected successfully");
-    let con = redis_connection.get_connection().expect("get connection");
-    let shared_con = Arc::new(Mutex::new(con));
+    let redis_pool = r2d2::Pool::builder()
+        .max_size(15)
+        .build(redis_connection)
+        .unwrap();
 
     let port = env::var("PORT")
         .unwrap_or_else(|_| "9000".to_string())
@@ -50,8 +56,8 @@ async fn main() -> std::io::Result<()> {
 
     println!("Starting server on {host}:{port}");
 
-    std::thread::spawn(sync_thread);
-    actix_web::rt::spawn(inactivity_detector());
+    actix_web::rt::spawn(activity_detector());
+    actix_web::rt::spawn(topics_sync(db_connection.clone()));
 
     HttpServer::new(move || {
         App::new()
@@ -66,7 +72,7 @@ async fn main() -> std::io::Result<()> {
             )
             .wrap(IdentityService)
             .app_data(Data::new(db_connection.clone()))
-            .app_data(Data::new(shared_con.clone()))
+            .app_data(Data::new(redis_pool.clone()))
             .service(routes::status::status)
             .service(routes::auth::auth)
             .service(routes::auth::login)

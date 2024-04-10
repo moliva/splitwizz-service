@@ -1,32 +1,113 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::sync::Arc;
 
-use actix_cors::Cors;
-use actix_web::web::Data;
-use actix_web::{middleware::Logger, App, HttpServer};
-use env_logger::Env;
 use futures::lock::Mutex;
-use redis::{Commands, ToRedisArgs};
+use futures::StreamExt;
+use redis::Commands;
 
-pub fn sync_thread() {
+use crate::queries::{find_groups, DbPool};
+
+pub async fn topics_sync(pool: DbPool) {
+    eprintln!("SYNC DETECTOR STARTING");
     let connspec = env::var("REDIS_URI").expect("REDIS_URI");
-    let redis_connection = redis::Client::open(connspec).expect("redis connected successfully");
-    let mut con = redis_connection.get_connection().expect("get connection");
-    let mut pubsub = con.as_pubsub();
+    let redis_client = redis::Client::open(connspec).expect("redis client connected successfully");
+    let mut connection = redis_client.get_connection().expect("redis connection");
 
-    // let mut users_subjects = HashMap::new();
+    let mut pubsub = redis_client.get_async_pubsub().await.expect("redis conn");
 
-    pubsub.subscribe("login").expect("login subscribe success");
-    pubsub.subscribe("logout").expect("login subscribe success");
-    eprintln!("SUBSCRIBED TO LOGIN EVENTS");
+    pubsub
+        .subscribe("activity.login")
+        .await
+        .expect("login subscribe success");
+
+    pubsub
+        .subscribe("activity.logout")
+        .await
+        .expect("logout subscribe success");
+
+    eprintln!("SUBSCRIBED TO SYNC EVENTS");
+
+    // TODO - users to topics map and topic to users map - moliva - 2024/04/09
+    let mut user_to_topics = HashMap::<String, HashSet<String>>::new();
+    let mut topic_to_users = HashMap::<String, HashSet<String>>::new();
+
+    let mut new_topics = Vec::<String>::default();
+    let mut topic_user: Option<String> = None;
 
     loop {
-        let msg = pubsub.get_message().expect("get message login");
-        let channel = msg.get_channel_name();
+        // subscribe to any new topics
+        if let Some(user) = topic_user.take() {
+            for topic in new_topics.iter() {
+                pubsub.psubscribe(topic).await.expect("psubscribe user");
 
-        let payload: String = msg.get_payload().expect("login payload");
+                if let Some(users) = topic_to_users.get_mut(topic) {
+                    users.insert(user.clone());
+                } else {
+                    let mut users = HashSet::new();
+                    users.insert(user.clone());
+                    topic_to_users.insert(topic.clone(), users);
+                }
+            }
 
-        eprintln!("RECEIVED {} {:?}", channel, payload);
+            if let Some(topics) = user_to_topics.get_mut(&user) {
+                topics.extend(new_topics.into_iter());
+            } else {
+                let mut topics = HashSet::new();
+                topics.extend(new_topics.into_iter());
+                user_to_topics.insert(user.clone(), topics);
+            }
+
+            new_topics = Vec::default();
+        }
+
+        // read stream
+        let mut stream = pubsub.on_message();
+
+        while let Some(msg) = stream.next().await {
+            let channel = msg.get_channel_name();
+            let payload: String = msg.get_payload().expect("payload");
+
+            eprintln!("RECEIVED {} {:?}", channel, payload);
+
+            match channel {
+                "activity.login" => {
+                    // query, save and subscribe to all topics for the given user
+                    let groups = find_groups(&payload, &pool).await.expect("groups");
+                    for group in groups {
+                        new_topics.push(format!("groups.{}.*", group.id.unwrap()));
+                    }
+
+                    new_topics.push(format!("user.{}.notifications.*", &payload));
+                    eprintln!("SUBSCRIBE TO NEW TOPICS FOR USER {}", payload);
+
+                    topic_user.replace(payload);
+
+                    break; // break read stream loop to subscribe to new topics
+                }
+                "activity.logout" => {
+                    // understand from which topics to unsubscribe and do it
+                }
+                // TODO - subscribe to all topics and publish them in each user queue - moliva - 2024/04/09
+                group_topic if group_topic.starts_with("groups.") => {
+                    eprintln!("RECEIVED GROUP TOPIC {}", &group_topic);
+
+                    let mut prefix = group_topic.split('.');
+                    let prefix = format!("{}.{}", prefix.next().unwrap(), prefix.next().unwrap());
+
+                    let found = topic_to_users.iter().find(|(t, _)| t.starts_with(&prefix));
+                    dbg!(&found);
+                    if let Some((_, users)) = found {
+                        for user in users {
+                            eprintln!("PUSH EVENT `{}` to user {}", &group_topic, &user);
+                            connection
+                                .rpush::<String, &str, ()>(format!("events.{}", user), group_topic)
+                                .expect("publish group topic");
+                        }
+                    }
+                }
+                _ => panic!("unknown topic `{}`", channel),
+            }
+        }
     }
 }

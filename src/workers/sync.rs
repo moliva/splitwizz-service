@@ -24,7 +24,6 @@ pub async fn topics_sync(pool: DbPool) {
         .await
         .expect("logout subscribe success");
 
-    // TODO - users to topics map and topic to users map - moliva - 2024/04/09
     let mut user_to_topics = HashMap::<String, HashSet<String>>::new();
     let mut topic_to_users = HashMap::<String, HashSet<String>>::new();
 
@@ -35,7 +34,6 @@ pub async fn topics_sync(pool: DbPool) {
         // subscribe to any new topics
         if let Some(user) = topic_user.take() {
             for topic in new_topics.iter() {
-                eprintln!("SUBSCRIBE TO USER TOPIC {}", &topic);
                 pubsub.psubscribe(topic).await.expect("psubscribe user");
 
                 if let Some(users) = topic_to_users.get_mut(topic) {
@@ -65,8 +63,6 @@ pub async fn topics_sync(pool: DbPool) {
             let channel = msg.get_channel_name();
             let payload: String = msg.get_payload().expect("payload");
 
-            eprintln!("RECEIVED {} {:?}", channel, payload);
-
             match channel {
                 "activity.login" => {
                     // query, save and subscribe to all topics for the given user
@@ -76,6 +72,7 @@ pub async fn topics_sync(pool: DbPool) {
                     }
 
                     new_topics.push(format!("users.{}.*", &payload));
+                    dbg!(&new_topics);
 
                     topic_user.replace(payload);
 
@@ -84,15 +81,19 @@ pub async fn topics_sync(pool: DbPool) {
                 "activity.logout" => {
                     // understand from which topics to unsubscribe and do it
                 }
-                // TODO - subscribe to all topics and publish them in each user queue - moliva - 2024/04/09
                 topic if topic.starts_with("groups.") || topic.starts_with("users.") => {
+                    dbg!(&topic);
                     let mut prefix = topic.split('.');
                     let prefix = format!("{}.{}", prefix.next().unwrap(), prefix.next().unwrap());
 
                     let found = topic_to_users.iter().find(|(t, _)| t.starts_with(&prefix));
+                    dbg!(&found);
+
                     if let Some((_, users)) = found {
                         for user in users {
+                            dbg!(&payload);
                             if user != &payload {
+                                dbg!("yes");
                                 // only send to user if not the author of the event
                                 connection
                                     .rpush::<String, &str, ()>(format!("events.{}", user), topic)

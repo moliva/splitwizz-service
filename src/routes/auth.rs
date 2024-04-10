@@ -1,11 +1,10 @@
 use std::env;
-use std::sync::Arc;
 use std::time::Duration;
 
+use actix_web::rt::spawn;
 use actix_web::web::Query;
 use actix_web::{get, web, HttpRequest, HttpResponse, Result};
 use awc::{self, Client};
-use futures::lock::Mutex;
 use google_jwt_verify::Client as GoogleClient;
 use redis::Commands;
 use uuid::Uuid;
@@ -13,8 +12,8 @@ use uuid::Uuid;
 use crate::auth::{AuthData, TokenForm, TokenResponse};
 use crate::models::{User, UserStatus};
 use crate::queries::{upsert_user, DbPool};
+use crate::redis::RedisPool;
 use crate::utils::gen_random_string;
-use crate::RedisPool;
 
 #[get("/auth")]
 async fn auth(
@@ -81,10 +80,7 @@ async fn auth(
             })
             .expect("user insert");
 
-        let mut redis = redis.get().expect("pooled conn");
-        redis
-            .publish::<&str, String, ()>("auth.login", email)
-            .expect("publish login");
+        spawn(publish_topic(redis, "auth.login".to_owned(), email));
 
         HttpResponse::Found()
             .append_header((
@@ -108,6 +104,14 @@ async fn auth(
             ))
             .finish()
     }
+}
+
+async fn publish_topic(redis: web::Data<RedisPool>, topic: String, payload: String) {
+    let mut redis = redis.get().expect("pooled conn");
+
+    redis
+        .publish::<String, String, ()>(topic, payload)
+        .expect("published topic");
 }
 
 #[get("/login")]

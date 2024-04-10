@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::num::NonZeroUsize;
 
 use actix_web::delete;
+use actix_web::rt::spawn;
 use actix_web::{
     error::ErrorInternalServerError, get, post, put, web, Error, HttpResponse, Result,
 };
@@ -11,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::identity::Identity;
 use crate::models::{self, Balance, SplitStrategy};
 use crate::queries::DbPool;
-use crate::RedisPool;
+use crate::redis::RedisPool;
 
 #[get("/currencies")]
 pub async fn fetch_currencies(pool: web::Data<DbPool>) -> Result<HttpResponse, Error> {
@@ -26,9 +27,11 @@ pub async fn fetch_currencies(pool: web::Data<DbPool>) -> Result<HttpResponse, E
 #[serde(rename_all(serialize = "snake_case", deserialize = "snake_case"))]
 #[serde(tag = "kind")]
 enum Event {
-    Group { id: models::GroupId },
+    Group { id: models::GroupId, field: String },
     Notification { id: i32 },
 }
+
+const _15_SECONDS: f64 = 15f64;
 
 #[get("/sync")]
 pub async fn sync(identity: Identity, redis: web::Data<RedisPool>) -> Result<HttpResponse, Error> {
@@ -40,7 +43,7 @@ pub async fn sync(identity: Identity, redis: web::Data<RedisPool>) -> Result<Htt
         .expect("publish sync");
 
     let event = redis
-        .brpop::<String, Option<(String, String)>>(format!("events.{}", email), 15f64)
+        .brpop::<String, Option<(String, String)>>(format!("events.{}", email), _15_SECONDS)
         .expect("brpop events");
 
     if event.is_none() {
@@ -52,31 +55,31 @@ pub async fn sync(identity: Identity, redis: web::Data<RedisPool>) -> Result<Htt
     let more = redis
         .rpop::<String, Vec<String>>(format!("events.{}", email), NonZeroUsize::new(99usize))
         .expect("rpop events");
-    dbg!(&more);
     events.extend(more);
 
-    eprintln!("READ EVENTS SYNC {:?}", &events);
+    dbg!(&events);
+
     let mut set = HashSet::new();
     for event in events {
-        let new = {
-            if event.starts_with("groups") {
-                let segments = event.splitn(3, '.');
-                let mut segments = segments.skip(1);
+        if event.starts_with("groups.") {
+            let segments = event.split('.');
+            let mut segments = segments.skip(1);
 
-                Event::Group {
-                    id: segments
-                        .next()
-                        .expect("group id")
-                        .parse()
-                        .expect("deserialize"),
-                }
-            } else {
-                Event::Notification { id: 0 } // TODO - nevermind for now - moliva - 2024/04/10
-            }
-        };
-        set.insert(new);
+            let new = Event::Group {
+                id: segments
+                    .next()
+                    .expect("group id")
+                    .parse()
+                    .expect("deserialize"),
+                field: segments.next().expect("field").to_owned(),
+            };
+            set.insert(new);
+        } else if event.starts_with("users.") {
+            let new = Event::Notification { id: 0 }; // TODO - nevermind for now - moliva - 2024/04/10
+            set.insert(new);
+        }
+        // TODO - we might be getting some other stuff from the rpop (the channel name) - moliva - 2024/04/10
     }
-    dbg!(&set);
 
     Ok(HttpResponse::Ok().json(&set))
 }
@@ -122,6 +125,8 @@ pub async fn create_group(
         .await
         .map_err(handle_unknown_error)?;
 
+    // TODO - update topics for user on new group - moliva - 2024/04/10
+
     Ok(HttpResponse::Ok().json(()))
 }
 
@@ -130,6 +135,7 @@ pub async fn edit_group(
     identity: Identity,
     path: web::Path<models::GroupId>,
     group: web::Json<models::Group>,
+    redis: web::Data<RedisPool>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
     let email = identity.identity().unwrap().email;
@@ -139,6 +145,12 @@ pub async fn edit_group(
     crate::queries::update_group(&email, group_id, group, &pool)
         .await
         .map_err(handle_unknown_error)?;
+
+    spawn(publish_topic(
+        redis,
+        format!("groups.{}.config", group_id),
+        email,
+    ));
 
     Ok(HttpResponse::Ok().json(()))
 }
@@ -191,6 +203,7 @@ pub async fn update_membership(
     identity: Identity,
     group_id: web::Path<models::GroupId>,
     membership_invitation: web::Json<models::MembershipUpdate>,
+    redis: web::Data<RedisPool>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
     let email = identity.identity().unwrap().email;
@@ -201,6 +214,16 @@ pub async fn update_membership(
     crate::queries::update_membership(&email, status, group_id, &pool)
         .await
         .map_err(handle_unknown_error)?;
+
+    spawn(publish_topic(
+        redis,
+        format!("groups.{}.members.{}", group_id, email),
+        email,
+    ));
+
+    eprintln!("OMG");
+
+    // TODO - update user topic on invite accepted - moliva - 2024/04/10
 
     Ok(HttpResponse::Ok().json(()))
 }
@@ -223,7 +246,11 @@ pub async fn create_memberships(
         .map_err(handle_unknown_error)?;
 
     for invite in emails {
-        publish_topic(&redis, &format!("users.{}.notifications", invite), &email).await?;
+        spawn(publish_topic(
+            redis.clone(),
+            format!("users.{}.notifications", invite),
+            email.clone(),
+        ));
     }
 
     Ok(HttpResponse::Ok().json(()))
@@ -233,6 +260,7 @@ pub async fn create_memberships(
 pub async fn delete_expense(
     identity: Identity,
     path: web::Path<(models::GroupId, i32)>,
+    redis: web::Data<RedisPool>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
     let email = identity.identity().unwrap().email;
@@ -243,6 +271,12 @@ pub async fn delete_expense(
     crate::queries::delete_expense(&email, group_id, expense_id, &pool)
         .await
         .map_err(handle_unknown_error)?;
+
+    spawn(publish_topic(
+        redis.clone(),
+        format!("groups.{}.expenses.{}", group_id, email),
+        email,
+    ));
 
     Ok(HttpResponse::Ok().json(()))
 }
@@ -268,49 +302,23 @@ pub async fn create_expense(
         .await
         .map_err(handle_unknown_error)?;
 
-    publish_topic(
-        &redis,
-        &format!("groups.{}.expenses.{}", group_id, expense_id),
-        &email,
-    )
-    .await?;
+    spawn(publish_topic(
+        redis.clone(),
+        format!("groups.{}.expenses.{}", group_id, expense_id),
+        email.clone(),
+    ));
 
     if let SplitStrategy::Payment { payer, recipient } = split_strategy {
-        let pool: &DbPool = &pool;
-
-        let r = sqlx::query!(
-            r#"
-           SELECT email
-           FROM users
-           WHERE email != $1 AND (id = $2 OR id = $3)
-           LIMIT 1
-         "#,
-            email,
+        spawn(lookup_and_publish(
+            pool.clone(),
+            redis.clone(),
             payer,
-            recipient
-        )
-        .fetch_one(pool)
-        .await
-        .expect("id of other");
-
-        let notif_email = r.email;
-
-        publish_topic(
-            &redis,
-            &format!("users.{}.notifications", notif_email),
-            &email,
-        )
-        .await?;
+            recipient,
+            email.clone(),
+        ));
     }
 
     Ok(HttpResponse::Ok().json(()))
-}
-
-async fn publish_topic(redis: &web::Data<RedisPool>, topic: &str, payload: &str) -> Result<()> {
-    let mut redis = redis.get().expect("pooled conn");
-    redis
-        .publish::<&str, &str, ()>(topic, payload)
-        .map_err(handle_unknown_redis_error)
 }
 
 #[get("/groups/{group_id}/balances")]
@@ -478,6 +486,50 @@ pub async fn fetch_expenses(
         .map_err(handle_unknown_error)?;
 
     Ok(HttpResponse::Ok().json(&expenses))
+}
+
+// *****************************************************************************************************
+// *************** Topic utils ***************
+// *****************************************************************************************************
+
+async fn lookup_and_publish(
+    pool: web::Data<DbPool>,
+    redis: web::Data<RedisPool>,
+    payer: String,
+    recipient: String,
+    email: String,
+) {
+    let pool: &DbPool = &pool;
+    let r = sqlx::query!(
+        r#"
+           SELECT email
+           FROM users
+           WHERE email != $1 AND (id = $2 OR id = $3)
+           LIMIT 1
+         "#,
+        email,
+        payer,
+        recipient
+    )
+    .fetch_one(pool)
+    .await
+    .expect("id of other");
+
+    let notif_email = r.email;
+
+    spawn(publish_topic(
+        redis.clone(),
+        format!("users.{}.notifications", notif_email),
+        email.clone(),
+    ));
+}
+
+async fn publish_topic(redis: web::Data<RedisPool>, topic: String, payload: String) {
+    let mut redis = redis.get().expect("pooled conn");
+
+    redis
+        .publish::<String, String, ()>(topic, payload)
+        .expect("published topic");
 }
 
 // *****************************************************************************************************

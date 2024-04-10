@@ -28,7 +28,6 @@ pub async fn activity_detector() {
         .await
         .expect("sync subscribe success");
 
-
     let mut interval = tokio::time::interval(Duration::from_secs(30));
 
     let mut stream = pubsub.on_message();
@@ -42,7 +41,6 @@ pub async fn activity_detector() {
 
             let now = Utc::now();
             for (user, time) in users_updates.iter() {
-                eprintln!("TIME {} {:?}", user, time);
                 let diff = now - time;
 
                 if diff.num_seconds() > 60 {
@@ -54,7 +52,6 @@ pub async fn activity_detector() {
             for user in deletion {
                 users_updates.remove(&user);
                 connection.publish::<&str, &String, ()>("activity.logout", &user).expect("publish logout");
-                eprintln!("LOGOUT {}", &user);
             }
           },
           next = stream.next() => {
@@ -62,7 +59,6 @@ pub async fn activity_detector() {
                  let channel = msg.get_channel_name();
                  let user: String = msg.get_payload().expect("login payload");
 
-                 eprintln!("RECEIVED {} {}", channel, &user);
                  let now = Utc::now();
 
                  let result = users_updates.lock().await.insert(user.clone(), now);

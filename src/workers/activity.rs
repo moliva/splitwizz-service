@@ -9,7 +9,7 @@ use futures::StreamExt;
 use redis::Commands;
 
 pub async fn activity_detector() {
-    eprintln!("INACTIVITY DETECTOR STARTING");
+    println!("INACTIVITY DETECTOR STARTING");
     let connspec = env::var("REDIS_URI").expect("REDIS_URI");
     let redis_client = redis::Client::open(connspec).expect("redis client connected successfully");
     let mut connection = redis_client.get_connection().expect("redis connection");
@@ -28,7 +28,6 @@ pub async fn activity_detector() {
         .await
         .expect("sync subscribe success");
 
-    eprintln!("INACTIVITY::::: SUBSCRIBED TO EVENTS");
 
     let mut interval = tokio::time::interval(Duration::from_secs(30));
 

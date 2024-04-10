@@ -1,15 +1,13 @@
 use std::collections::{HashMap, HashSet};
 use std::env;
-use std::sync::Arc;
 
-use futures::lock::Mutex;
 use futures::StreamExt;
 use redis::Commands;
 
 use crate::queries::{find_groups, DbPool};
 
 pub async fn topics_sync(pool: DbPool) {
-    eprintln!("SYNC DETECTOR STARTING");
+    println!("SYNC DETECTOR STARTING");
     let connspec = env::var("REDIS_URI").expect("REDIS_URI");
     let redis_client = redis::Client::open(connspec).expect("redis client connected successfully");
     let mut connection = redis_client.get_connection().expect("redis connection");
@@ -26,8 +24,6 @@ pub async fn topics_sync(pool: DbPool) {
         .await
         .expect("logout subscribe success");
 
-    eprintln!("SUBSCRIBED TO SYNC EVENTS");
-
     // TODO - users to topics map and topic to users map - moliva - 2024/04/09
     let mut user_to_topics = HashMap::<String, HashSet<String>>::new();
     let mut topic_to_users = HashMap::<String, HashSet<String>>::new();
@@ -39,6 +35,7 @@ pub async fn topics_sync(pool: DbPool) {
         // subscribe to any new topics
         if let Some(user) = topic_user.take() {
             for topic in new_topics.iter() {
+                eprintln!("SUBSCRIBE TO USER TOPIC {}", &topic);
                 pubsub.psubscribe(topic).await.expect("psubscribe user");
 
                 if let Some(users) = topic_to_users.get_mut(topic) {
@@ -78,8 +75,7 @@ pub async fn topics_sync(pool: DbPool) {
                         new_topics.push(format!("groups.{}.*", group.id.unwrap()));
                     }
 
-                    new_topics.push(format!("user.{}.notifications.*", &payload));
-                    eprintln!("SUBSCRIBE TO NEW TOPICS FOR USER {}", payload);
+                    new_topics.push(format!("users.{}.*", &payload));
 
                     topic_user.replace(payload);
 
@@ -89,20 +85,19 @@ pub async fn topics_sync(pool: DbPool) {
                     // understand from which topics to unsubscribe and do it
                 }
                 // TODO - subscribe to all topics and publish them in each user queue - moliva - 2024/04/09
-                group_topic if group_topic.starts_with("groups.") => {
-                    eprintln!("RECEIVED GROUP TOPIC {}", &group_topic);
-
-                    let mut prefix = group_topic.split('.');
+                topic if topic.starts_with("groups.") || topic.starts_with("users.") => {
+                    let mut prefix = topic.split('.');
                     let prefix = format!("{}.{}", prefix.next().unwrap(), prefix.next().unwrap());
 
                     let found = topic_to_users.iter().find(|(t, _)| t.starts_with(&prefix));
-                    dbg!(&found);
                     if let Some((_, users)) = found {
                         for user in users {
-                            eprintln!("PUSH EVENT `{}` to user {}", &group_topic, &user);
-                            connection
-                                .rpush::<String, &str, ()>(format!("events.{}", user), group_topic)
-                                .expect("publish group topic");
+                            if user != &payload {
+                                // only send to user if not the author of the event
+                                connection
+                                    .rpush::<String, &str, ()>(format!("events.{}", user), topic)
+                                    .expect("publish group topic");
+                            }
                         }
                     }
                 }

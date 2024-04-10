@@ -14,7 +14,10 @@ pub async fn create_connection_pool(connspec: &str) -> Result<DbPool, sqlx::Erro
     pool.connect(connspec).await
 }
 
-pub async fn upsert_user(user: &models::User, pool: &DbPool) -> Result<models::UserId, sqlx::Error> {
+pub async fn upsert_user(
+    user: &models::User,
+    pool: &DbPool,
+) -> Result<models::UserId, sqlx::Error> {
     let record = sqlx::query!(
         r#"INSERT INTO users (id, email, name, picture, status)
          VALUES ($1, $2, $3, $4, $5)

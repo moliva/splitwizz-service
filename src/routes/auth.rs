@@ -6,7 +6,7 @@ use actix_web::web::Query;
 use actix_web::{get, web, HttpRequest, HttpResponse, Result};
 use awc::{self, Client};
 use google_jwt_verify::Client as GoogleClient;
-use redis::Commands;
+use redis::{AsyncCommands, Commands};
 use uuid::Uuid;
 
 use crate::auth::{AuthData, TokenForm, TokenResponse};
@@ -107,10 +107,11 @@ async fn auth(
 }
 
 async fn publish_topic(redis: web::Data<RedisPool>, topic: String, payload: String) {
-    let mut redis = redis.get().expect("pooled conn");
+    let mut redis = redis.get().await.expect("pooled conn");
 
     redis
         .publish::<String, String, ()>(topic, payload)
+        .await
         .expect("published topic");
 }
 

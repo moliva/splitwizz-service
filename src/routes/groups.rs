@@ -6,7 +6,7 @@ use actix_web::rt::spawn;
 use actix_web::{
     error::ErrorInternalServerError, get, post, put, web, Error, HttpResponse, Result,
 };
-use redis::Commands;
+use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 
 use crate::identity::Identity;
@@ -37,13 +37,15 @@ const _15_SECONDS: f64 = 15f64;
 pub async fn sync(identity: Identity, redis: web::Data<RedisPool>) -> Result<HttpResponse, Error> {
     let email = identity.identity().unwrap().email;
 
-    let mut redis = redis.get().expect("pooled conn");
+    let mut redis = redis.get().await.expect("pooled conn");
     redis
         .publish::<&str, &str, ()>("sync", &email)
+        .await
         .expect("publish sync");
 
     let event = redis
         .brpop::<String, Option<(String, String)>>(format!("events.{}", email), _15_SECONDS)
+        .await
         .expect("brpop events");
 
     if event.is_none() {
@@ -54,6 +56,7 @@ pub async fn sync(identity: Identity, redis: web::Data<RedisPool>) -> Result<Htt
 
     let more = redis
         .rpop::<String, Vec<String>>(format!("events.{}", email), NonZeroUsize::new(99usize))
+        .await
         .expect("rpop events");
     events.extend(more);
 
@@ -156,9 +159,9 @@ pub async fn edit_group(
         .map_err(handle_unknown_error)?;
 
     spawn(publish_topic(
-        redis,
-        format!("users.{}.groups.{}.joined", email, group_id),
-        email,
+        redis.clone(),
+        format!("groups.{}.config", group_id),
+        email.clone(),
     ));
 
     Ok(HttpResponse::Ok().json(()))
@@ -536,10 +539,11 @@ async fn lookup_and_publish(
 }
 
 async fn publish_topic(redis: web::Data<RedisPool>, topic: String, payload: String) {
-    let mut redis = redis.get().expect("pooled conn");
+    let mut redis = redis.get().await.expect("pooled conn");
 
     redis
         .publish::<String, String, ()>(topic, payload)
+        .await
         .expect("published topic");
 }
 

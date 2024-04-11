@@ -190,7 +190,7 @@ pub async fn create_group(
     email: &str,
     group: models::Group,
     pool: &DbPool,
-) -> Result<(), sqlx::Error> {
+) -> Result<models::GroupId, sqlx::Error> {
     // create group
     let value: serde_json::Value = group.balance_config.into();
 
@@ -220,8 +220,7 @@ pub async fn create_group(
     .execute(pool)
     .await?;
 
-    // TODO - get the id from the new group - moliva - 2024/03/10
-    Ok(())
+    Ok(result.id)
 }
 
 pub async fn update_notifications(

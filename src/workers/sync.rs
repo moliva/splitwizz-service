@@ -93,10 +93,12 @@ pub async fn topics_sync(pool: DbPool) {
                         &payload,
                         new_topics,
                     );
+
+                    continue;
                 }
 
                 let mut prefix = topic.split('.');
-                let prefix = format!("{}.{}", prefix.next().unwrap(), prefix.next().unwrap());
+                let prefix = format!("{}.{}.", prefix.next().unwrap(), prefix.next().unwrap());
 
                 let found = topic_to_users.iter().find(|(t, _)| t.starts_with(&prefix));
 

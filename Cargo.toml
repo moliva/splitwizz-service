@@ -28,7 +28,7 @@ sqlx = { version = "0.7", features = [
   "chrono",
 ] }
 rand = "0.8"
-redis = { version = "0.25.3", features = ["tokio-comp", "r2d2"] }
+redis = { version = "0.25.3", features = ["tokio-comp"] }
 bb8-redis = "0.15.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

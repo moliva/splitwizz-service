@@ -80,9 +80,9 @@ pub struct BalanceConfig {
     simplified: bool,
 }
 
-impl Into<serde_json::Value> for BalanceConfig {
-    fn into(self) -> serde_json::Value {
-        serde_json::to_value(self).expect("serialized value")
+impl From<BalanceConfig> for serde_json::Value {
+    fn from(val: BalanceConfig) -> Self {
+        serde_json::to_value(val).expect("serialized value")
     }
 }
 

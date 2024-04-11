@@ -6,7 +6,7 @@ use actix_web::web::Query;
 use actix_web::{get, web, HttpRequest, HttpResponse, Result};
 use awc::{self, Client};
 use google_jwt_verify::Client as GoogleClient;
-use redis::{AsyncCommands, Commands};
+use redis::AsyncCommands;
 use uuid::Uuid;
 
 use crate::auth::{AuthData, TokenForm, TokenResponse};

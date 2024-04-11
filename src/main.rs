@@ -53,7 +53,7 @@ async fn main() -> std::io::Result<()> {
     println!("Starting server on {host}:{port}");
 
     let db2 = db_connection.clone();
-    spawn_blocking(|| block_on(activity_detector()));
+    spawn(activity_detector());
     spawn_blocking(move || block_on(topics_sync(db2.clone())));
 
     let workers_num = available_parallelism().unwrap().get() * 2;

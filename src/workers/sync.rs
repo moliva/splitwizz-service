@@ -50,6 +50,23 @@ pub async fn topics_sync(pool: DbPool) {
             }
             "activity.logout" => {
                 // understand from which topics to unsubscribe and do it
+                let topics = user_to_topics.remove(&payload);
+                if topics.is_none() {
+                    continue;
+                }
+
+                for topic in topics.unwrap() {
+                    let users = topic_to_users.get_mut(&topic);
+                    if let Some(users) = users {
+                        users.remove(&payload);
+
+                        // no more users interested in this topic, unsubscribe
+                        // we don't need to delete the HashSet fttb
+                        if users.is_empty() {
+                            pubsub.punsubscribe(topic).expect("punsubscribe user");
+                        }
+                    }
+                }
             }
             topic if topic.starts_with("groups.") || topic.starts_with("users.") => {
                 if topic.ends_with(".joined") {

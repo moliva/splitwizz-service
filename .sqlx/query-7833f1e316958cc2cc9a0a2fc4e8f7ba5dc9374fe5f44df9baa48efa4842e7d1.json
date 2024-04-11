@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n           SELECT email\n           FROM users\n           WHERE email != $1 AND (id = $2 OR id = $3)\n           LIMIT 1\n         ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "email",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7833f1e316958cc2cc9a0a2fc4e8f7ba5dc9374fe5f44df9baa48efa4842e7d1"
+}

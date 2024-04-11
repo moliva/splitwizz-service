@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO users (id, email, name, picture, status)\n         VALUES ($1, $2, $3, $4, $5)\n         ON CONFLICT (email) DO UPDATE\n         SET name = $3,\n             picture = $4,\n             status = $5\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        {
+          "Custom": {
+            "name": "user_status",
+            "kind": {
+              "Enum": [
+                "invited",
+                "active",
+                "inactive"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "fbccb0a4e09bb22cb5492c672cc2a1527fd07a216ffba9153021c2d70cb66c65"
+}

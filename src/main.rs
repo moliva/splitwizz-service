@@ -38,7 +38,7 @@ async fn main() -> std::io::Result<()> {
     let db_connection = create_connection_pool(&connspec).await.unwrap();
 
     let connspec = env::var("REDIS_URI").expect("REDIS_URI");
-    let redis_pool = create_redis_pool(&connspec).unwrap();
+    let redis_pool = create_redis_pool(&connspec).await.expect("redis pool");
 
     let port = env::var("PORT")
         .unwrap_or_else(|_| "9000".to_string())

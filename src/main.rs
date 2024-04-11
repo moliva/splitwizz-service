@@ -1,11 +1,13 @@
-use std::env;
 use std::thread::available_parallelism;
+use std::{env, thread};
 
 use actix_cors::Cors;
 use actix_web::rt::spawn;
 use actix_web::web::Data;
 use actix_web::{middleware::Logger, App, HttpServer};
 use env_logger::Env;
+use futures::executor::block_on;
+use tokio::task::spawn_blocking;
 
 use crate::identity::IdentityService;
 use crate::queries::create_connection_pool;
@@ -50,8 +52,9 @@ async fn main() -> std::io::Result<()> {
 
     println!("Starting server on {host}:{port}");
 
-    spawn(activity_detector());
-    spawn(topics_sync(db_connection.clone()));
+    let db2 = db_connection.clone();
+    spawn_blocking(|| block_on(activity_detector()));
+    spawn_blocking(move || block_on(topics_sync(db2.clone())));
 
     let workers_num = available_parallelism().unwrap().get() * 2;
 

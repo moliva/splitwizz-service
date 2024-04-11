@@ -57,8 +57,6 @@ pub async fn sync(identity: Identity, redis: web::Data<RedisPool>) -> Result<Htt
         .expect("rpop events");
     events.extend(more);
 
-    dbg!(&events);
-
     let mut set = HashSet::new();
     for event in events {
         if event.starts_with("groups.") {
@@ -117,15 +115,26 @@ pub async fn create_group(
     identity: Identity,
     group: web::Json<models::Group>,
     pool: web::Data<DbPool>,
+    redis: web::Data<RedisPool>,
 ) -> Result<HttpResponse, Error> {
     let email = identity.identity().unwrap().email;
     let web::Json(group) = group;
 
-    crate::queries::create_group(&email, group, &pool)
+    let group_id = crate::queries::create_group(&email, group, &pool)
         .await
         .map_err(handle_unknown_error)?;
 
-    // TODO - update topics for user on new group - moliva - 2024/04/10
+    spawn(publish_topic(
+        redis.clone(),
+        format!("groups.{}.config", group_id),
+        email.clone(),
+    ));
+
+    spawn(publish_topic(
+        redis,
+        format!("users.{}.groups.{}.joined", email, group_id),
+        email,
+    ));
 
     Ok(HttpResponse::Ok().json(()))
 }
@@ -148,7 +157,7 @@ pub async fn edit_group(
 
     spawn(publish_topic(
         redis,
-        format!("groups.{}.config", group_id),
+        format!("users.{}.groups.{}.joined", email, group_id),
         email,
     ));
 
@@ -216,14 +225,16 @@ pub async fn update_membership(
         .map_err(handle_unknown_error)?;
 
     spawn(publish_topic(
-        redis,
+        redis.clone(),
         format!("groups.{}.members.{}", group_id, email),
-        email,
+        email.clone(),
     ));
 
-    eprintln!("OMG");
-
-    // TODO - update user topic on invite accepted - moliva - 2024/04/10
+    spawn(publish_topic(
+        redis,
+        format!("users.{}.groups.{}.joined", email, group_id),
+        email,
+    ));
 
     Ok(HttpResponse::Ok().json(()))
 }

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use uuid::Uuid;
 
-use crate::models::{self, DetailedGroup, Expense, GroupId, Notification, SplitStrategy};
+use crate::models::{self, DetailedGroup, Expense, GroupId, SplitStrategy};
 
 pub type DbPool = PgPool;
 

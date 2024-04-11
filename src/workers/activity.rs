@@ -56,7 +56,7 @@ pub async fn activity_detector() {
           },
           next = stream.next() => {
              if let Some(msg) = next {
-                 let channel = msg.get_channel_name();
+                 let _channel = msg.get_channel_name();
                  let user: String = msg.get_payload().expect("login payload");
 
                  let now = Utc::now();

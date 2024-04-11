@@ -1,5 +1,5 @@
+use std::env;
 use std::thread::available_parallelism;
-use std::{env, thread};
 
 use actix_cors::Cors;
 use actix_web::rt::spawn;

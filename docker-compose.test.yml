@@ -1,0 +1,32 @@
+volumes:
+  db_storage: {}
+
+services:
+  test_redis:
+    container_name: "splitwizz_test_redis"
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+
+  test_db:
+    container_name: "splitwizz_test_db"
+    image: postgres:14.7
+    user: root
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=trust
+      - POSTGRES_USER=root
+      - POSTGRES_DB=splitwizz
+    expose:
+      - ${POSTGRES_PORT:-5432}
+    ports:
+      - "${POSTGRES_PORT:-5432}:${POSTGRES_PORT:-5432}"
+    restart: always
+    volumes:
+      - "db_storage:/var/lib/postgresql/data"
+    healthcheck:
+      test: [ 'CMD-SHELL', 'pg_isready -U root -d splitwizz' ]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+

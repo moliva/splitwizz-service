@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 dockerfile='Dockerfile'
-image_name='splitwizz-service:v2'
+image_name='splitwizz-service:v11'
 
 echo "Building $image_name"
 docker build -f "$dockerfile" -t "$image_name" .

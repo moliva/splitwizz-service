@@ -3,13 +3,15 @@ use std::time::Duration;
 
 use actix_web::rt::spawn;
 use actix_web::web::Query;
-use actix_web::{get, web, HttpRequest, HttpResponse, Result};
+use actix_web::{get, post, web, HttpRequest, HttpResponse, Result};
 use awc::{self, Client};
 use google_jwt_verify::Client as GoogleClient;
 use redis::AsyncCommands;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::auth::{AuthData, TokenForm, TokenResponse};
+use crate::auth::{AuthData, Claims, TokenForm, TokenResponse};
+use crate::jwt::{generate_id_token, generate_jwt, generate_refresh_token, verify_jwt};
 use crate::models::{User, UserStatus};
 use crate::queries::{upsert_user, DbPool};
 use crate::redis::RedisPool;
@@ -82,13 +84,27 @@ async fn auth(
 
         spawn(publish_topic(redis, "auth.login".to_owned(), email));
 
+        let refresh_secret_key = env::var("REFRESH_SECRET").expect("refresh secret not provided");
+        let refresh_secret_key = refresh_secret_key.as_bytes();
+
+        let secret_key = env::var("JWT_SECRET").expect("jwt secret not provided");
+        let secret_key = secret_key.as_bytes();
+
+        let jwt = generate_jwt(&user.id, &user.email, secret_key).expect("jwt generation");
+        let refresh_jwt = generate_refresh_token(&user.id, &user.email, refresh_secret_key)
+            .expect("refresh generation");
+        // TODO(miguel): add refresh token to table - 2024/12/22
+        // make sure all other refresh tokens are revoked
+
+        let id_token = generate_id_token(&user, jwt, refresh_jwt, secret_key).expect("id token");
+
         HttpResponse::Found()
             .append_header((
                 "location",
                 format!(
                     "{}?login_success={}",
                     env::var("WEB_URI").expect("web uri not provided"),
-                    token
+                    id_token
                 ),
             ))
             .finish()
@@ -135,4 +151,52 @@ async fn login() -> Result<HttpResponse> {
             ),
         ))
         .finish())
+}
+
+#[derive(Debug, Serialize)]
+struct RefreshResponse {
+    access_token: String,
+    refresh_token: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RefreshRequest {
+    refresh_token: String,
+}
+
+#[post("/refresh")]
+async fn refresh(body: web::Json<RefreshRequest>, pool: web::Data<DbPool>) -> HttpResponse {
+    let refresh_token = &body.refresh_token;
+
+    let refresh_secret_key = env::var("REFRESH_SECRET").expect("refresh secret not provided");
+    let refresh_secret_key = refresh_secret_key.as_bytes();
+
+    let secret_key = env::var("JWT_SECRET").expect("jwt secret not provided");
+    let secret_key = secret_key.as_bytes();
+
+    // Validate refresh token
+    let decoded = verify_jwt::<Claims>(refresh_token, refresh_secret_key);
+
+    // TODO(miguel): check it's not revoked - 2024/12/22
+    // not expired
+
+    match decoded {
+        Ok(decoded_token) => {
+            let user_id = decoded_token.sub;
+            let email = decoded_token.email;
+
+            // Generate new access token
+            let access_token = generate_jwt(&user_id, &email, secret_key).unwrap();
+            let refresh_token =
+                generate_refresh_token(&user_id, &email, refresh_secret_key).unwrap();
+
+            let response = RefreshResponse {
+                access_token,
+                refresh_token,
+            };
+
+            HttpResponse::Ok().json(response)
+        }
+        Err(_) => HttpResponse::Unauthorized().finish(),
+    }
 }

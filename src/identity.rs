@@ -15,8 +15,10 @@ use futures::{
     future::{ok, FutureExt, Ready},
     Future,
 };
-use google_jwt_verify::{Client as GoogleClient, IdPayload, Token};
+use google_jwt_verify::{IdPayload, Token};
 use http::Method;
+
+use crate::{auth::Claims, jwt::verify_jwt};
 
 #[derive(Clone)]
 pub struct Identity(HttpRequest);
@@ -34,12 +36,12 @@ impl FromRequest for Identity {
 impl Identity {
     /// Return the claimed identity of the user associated request or
     /// ``None`` if no identity can be found associated with the request.
-    pub fn identity(&self) -> Option<IdToken> {
+    pub fn identity(&self) -> Option<Claims> {
         Identity::get_identity(&self.0.extensions())
     }
 
     /// Remember identity.
-    pub fn remember(&self, identity: IdToken) {
+    pub fn remember(&self, identity: Claims) {
         if let Some(id) = self.0.extensions_mut().get_mut::<IdentityItem>() {
             id.id = Some(identity);
         }
@@ -53,7 +55,7 @@ impl Identity {
         }
     }
 
-    fn get_identity(extensions: &Ref<'_, Extensions>) -> Option<IdToken> {
+    fn get_identity(extensions: &Ref<'_, Extensions>) -> Option<Claims> {
         if let Some(id) = extensions.get::<IdentityItem>() {
             id.id.clone()
         } else {
@@ -63,7 +65,7 @@ impl Identity {
 }
 
 struct IdentityItem {
-    id: Option<IdToken>,
+    id: Option<Claims>,
 }
 
 #[derive(Clone)]
@@ -145,7 +147,7 @@ where
 
         async move {
             let id = validate_auth_(&headers).await;
-            let id = id.map(IdToken::from);
+            // let id = id.map(IdToken::from);
             req.extensions_mut().insert(IdentityItem { id });
 
             let fut = srv.borrow_mut().call(req);
@@ -158,17 +160,21 @@ where
     }
 }
 
-async fn validate_auth_(headers: &HeaderMap) -> Option<Token<IdPayload>> {
+async fn validate_auth_(headers: &HeaderMap) -> Option<Claims> {
     let authorization = headers.get("authorization");
 
     if let Some(identity_token) = authorization {
-        let client_id = env::var("CLIENT_ID").unwrap();
-        let client_id = client_id.as_str();
-        let token = identity_token.to_str().unwrap();
+        // let client_id = env::var("CLIENT_ID").unwrap();
+        // let client_id = client_id.as_str();
+        // let token = identity_token.to_str().unwrap();
+        //
+        // let client = GoogleClient::new(client_id);
+        // // TODO - handle the case where the token is expired below - moliva - 2024/03/20
+        // let yas = client.verify_id_token_async(token).await.unwrap();
+        let secret_key = env::var("JWT_SECRET").unwrap();
+        let secret_key = secret_key.as_bytes();
 
-        let client = GoogleClient::new(client_id);
-        // TODO - handle the case where the token is expired below - moliva - 2024/03/20
-        let yas = client.verify_id_token_async(token).await.unwrap();
+        let yas = verify_jwt(identity_token.to_str().unwrap(), secret_key).unwrap();
 
         Some(yas)
     } else {

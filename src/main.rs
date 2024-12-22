@@ -18,6 +18,7 @@ use crate::workers::sync::topics_sync;
 
 mod auth;
 mod identity;
+mod jwt;
 mod models;
 mod queries;
 mod redis;

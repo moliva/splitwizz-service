@@ -24,3 +24,23 @@ pub struct TokenResponse {
     pub scope: Option<String>,
     pub refresh_token: Option<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct IdentityToken {
+    pub sub: String, // User ID or email
+    // fields
+    pub(crate) name: Option<String>,
+    pub(crate) email: String,
+    pub(crate) picture: Option<String>, // Expiration timestamp
+    // tokens
+    pub access_token: String,
+    pub(crate) refresh_token: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Claims {
+    pub sub: String, // User ID or email
+    pub exp: usize,
+    // TODO(miguel): remove later - 2024/12/22
+    pub(crate) email: String,
+}

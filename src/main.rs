@@ -76,6 +76,8 @@ async fn main() -> std::io::Result<()> {
             .service(routes::status::status)
             .service(routes::auth::auth)
             .service(routes::auth::login)
+            .service(routes::auth::logout)
+            .service(routes::auth::refresh)
             .service(routes::groups::create_group)
             .service(routes::groups::edit_group)
             .service(routes::groups::fetch_groups)

@@ -15,7 +15,14 @@ use crate::queries::DbPool;
 use crate::redis::RedisPool;
 
 #[get("/currencies")]
-pub async fn fetch_currencies(pool: web::Data<DbPool>) -> Result<HttpResponse, Error> {
+pub async fn fetch_currencies(
+    identity: Identity,
+    pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     let currencies = crate::queries::find_currencies(&pool)
         .await
         .map_err(handle_unknown_error)?;
@@ -35,6 +42,10 @@ const _15_SECONDS: f64 = 15f64;
 
 #[get("/sync")]
 pub async fn sync(identity: Identity, redis: web::Data<RedisPool>) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     let email = identity.identity().unwrap().email;
 
     let mut redis = redis.get().await.expect("pooled conn");
@@ -90,6 +101,10 @@ pub async fn fetch_notifications(
     identity: Identity,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     let email = identity.identity().unwrap().email;
 
     let notifications = crate::queries::find_notifications(&email, &pool)
@@ -104,6 +119,10 @@ pub async fn fetch_groups(
     identity: Identity,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     let email = identity.identity().unwrap().email;
 
     let groups = crate::queries::find_groups(&email, &pool)
@@ -120,6 +139,10 @@ pub async fn create_group(
     pool: web::Data<DbPool>,
     redis: web::Data<RedisPool>,
 ) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     let email = identity.identity().unwrap().email;
     let web::Json(group) = group;
 
@@ -150,6 +173,10 @@ pub async fn edit_group(
     redis: web::Data<RedisPool>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     let email = identity.identity().unwrap().email;
     let web::Json(group) = group;
     let group_id = path.into_inner();
@@ -173,6 +200,10 @@ pub async fn fetch_detailed_group(
     path: web::Path<models::GroupId>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     let email = identity.identity().unwrap().email;
     let group_id = path.into_inner();
 
@@ -185,9 +216,14 @@ pub async fn fetch_detailed_group(
 
 #[put("/notifications")]
 pub async fn update_notifications(
+    identity: Identity,
     notifications_update: web::Json<models::NotificationsUpdate>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     crate::queries::update_notifications(notifications_update.0, &pool)
         .await
         .map_err(handle_unknown_error)?;
@@ -197,10 +233,15 @@ pub async fn update_notifications(
 
 #[put("/notifications/{notification_id}")]
 pub async fn update_notification(
+    identity: Identity,
     path: web::Path<i32>,
     notification_update: web::Json<models::NotificationUpdate>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     let notification_id = path.into_inner();
 
     crate::queries::update_notification(notification_id, notification_update.0, &pool)
@@ -218,6 +259,10 @@ pub async fn update_membership(
     redis: web::Data<RedisPool>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     let email = identity.identity().unwrap().email;
     let group_id = group_id.into_inner();
 
@@ -250,6 +295,10 @@ pub async fn create_memberships(
     pool: web::Data<DbPool>,
     redis: web::Data<RedisPool>,
 ) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     let email = identity.identity().unwrap().email;
     let group_id = group_id.into_inner();
 
@@ -277,6 +326,10 @@ pub async fn delete_expense(
     redis: web::Data<RedisPool>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     let email = identity.identity().unwrap().email;
     let (group_id, expense_id) = path.into_inner();
 
@@ -303,6 +356,10 @@ pub async fn create_expense(
     pool: web::Data<DbPool>,
     redis: web::Data<RedisPool>,
 ) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     let email = identity.identity().unwrap().email;
     let group_id = group_id.into_inner();
 
@@ -341,6 +398,10 @@ pub async fn fetch_balances(
     group_id: web::Path<i32>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     let email = identity.identity().unwrap().email;
     let group_id = group_id.into_inner();
 
@@ -490,6 +551,10 @@ pub async fn fetch_expenses(
     group_id: web::Path<i32>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
+    if identity.identity().is_none() {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
     let email = identity.identity().unwrap().email;
     let group_id = group_id.into_inner();
 

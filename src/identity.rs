@@ -8,9 +8,11 @@ use std::{
 
 use actix_web::{
     dev::{Extensions, Payload, Service, ServiceRequest, ServiceResponse, Transform},
+    error::ErrorUnauthorized,
     http::header::HeaderMap,
-    Error, FromRequest, HttpMessage, HttpRequest, Result,
+    Error, FromRequest, HttpMessage, HttpRequest, HttpResponse, Result,
 };
+use awc::cookie::Cookie;
 use futures::{
     future::{ok, FutureExt, Ready},
     Future,
@@ -138,16 +140,21 @@ where
         if req.method() == Method::OPTIONS {
             return Box::pin(self.service.call(req));
         }
-        if ["/login", "/auth"].contains(&req.path()) {
+        if ["/login", "/auth", "/refresh"].contains(&req.path()) {
             return Box::pin(self.service.call(req));
         }
 
-        let headers = req.headers().clone();
+        let cookies = req.cookies().expect("cookies").clone();
         let srv = self.service.clone();
 
         async move {
-            let id = validate_auth_(&headers).await;
-            // let id = id.map(IdToken::from);
+            let id = validate_auth_(&cookies);
+            // if id.is_none() {
+            //     let sr = ErrorUnauthorized("Unauthorized: Missing or invalid token");
+            //
+            //     return Err(sr);
+            // }
+
             req.extensions_mut().insert(IdentityItem { id });
 
             let fut = srv.borrow_mut().call(req);
@@ -160,23 +167,22 @@ where
     }
 }
 
-async fn validate_auth_(headers: &HeaderMap) -> Option<Claims> {
-    let authorization = headers.get("authorization");
+fn validate_auth_(headers: &[Cookie<'static>]) -> Option<Claims> {
+    let authorization = headers.iter().find(|c| c.name() == "access_token");
 
     if let Some(identity_token) = authorization {
-        // let client_id = env::var("CLIENT_ID").unwrap();
-        // let client_id = client_id.as_str();
-        // let token = identity_token.to_str().unwrap();
-        //
-        // let client = GoogleClient::new(client_id);
-        // // TODO - handle the case where the token is expired below - moliva - 2024/03/20
-        // let yas = client.verify_id_token_async(token).await.unwrap();
         let secret_key = env::var("JWT_SECRET").unwrap();
         let secret_key = secret_key.as_bytes();
 
-        let yas = verify_jwt(identity_token.to_str().unwrap(), secret_key).unwrap();
+        let value = identity_token.value();
 
-        Some(yas)
+        let yas = verify_jwt(value, secret_key);
+
+        if let Ok(yas) = yas {
+            Some(yas)
+        } else {
+            None
+        }
     } else {
         None
     }

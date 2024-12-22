@@ -27,20 +27,17 @@ pub struct TokenResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct IdentityToken {
-    pub sub: String, // User ID or email
+    pub sub: String, // User ID
     // fields
-    pub(crate) name: Option<String>,
-    pub(crate) email: String,
-    pub(crate) picture: Option<String>, // Expiration timestamp
-    // tokens
-    pub access_token: String,
-    pub(crate) refresh_token: String,
+    pub name: Option<String>,
+    pub email: String,
+    pub picture: Option<String>, // Expiration timestamp
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
-    pub sub: String, // User ID or email
+    pub sub: String, // User ID
     pub exp: usize,
     // TODO(miguel): remove later - 2024/12/22
-    pub(crate) email: String,
+    pub email: String,
 }

@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use actix_web::rt::spawn;
 use actix_web::web::Query;
-use actix_web::{get, post, web, HttpRequest, HttpResponse, Result};
+use actix_web::{get, post, web, HttpRequest, HttpResponse, HttpResponseBuilder, Result};
 use awc::{self, Client};
 use google_jwt_verify::Client as GoogleClient;
 use redis::AsyncCommands;
@@ -90,15 +90,23 @@ async fn auth(
         let secret_key = env::var("JWT_SECRET").expect("jwt secret not provided");
         let secret_key = secret_key.as_bytes();
 
-        let jwt = generate_jwt(&user.id, &user.email, secret_key).expect("jwt generation");
+        let access_jwt = generate_jwt(&user.id, &user.email, secret_key).expect("jwt generation");
         let refresh_jwt = generate_refresh_token(&user.id, &user.email, refresh_secret_key)
             .expect("refresh generation");
         // TODO(miguel): add refresh token to table - 2024/12/22
         // make sure all other refresh tokens are revoked
 
-        let id_token = generate_id_token(&user, jwt, refresh_jwt, secret_key).expect("id token");
+        let id_token = generate_id_token(&user, secret_key).expect("id token");
 
         HttpResponse::Found()
+            .append_header((
+                "set-cookie",
+                cookie("refresh_token", refresh_jwt, 604800), // 7d
+            ))
+            .append_header((
+                "set-cookie",
+                cookie("access_token", access_jwt, 604800), // 7d
+            ))
             .append_header((
                 "location",
                 format!(
@@ -153,6 +161,18 @@ async fn login() -> Result<HttpResponse> {
         .finish())
 }
 
+#[get("/logout")]
+async fn logout() -> Result<HttpResponse> {
+    Ok(HttpResponse::Found()
+        .append_header(("set-cookie", remove_cookie("access_token")))
+        .append_header(("set-cookie", remove_cookie("refresh_token")))
+        .append_header((
+            "location",
+            env::var("WEB_URI").expect("web uri not provided"),
+        ))
+        .finish())
+}
+
 #[derive(Debug, Serialize)]
 struct RefreshResponse {
     access_token: String,
@@ -165,8 +185,11 @@ struct RefreshRequest {
 }
 
 #[post("/refresh")]
-async fn refresh(body: web::Json<RefreshRequest>, pool: web::Data<DbPool>) -> HttpResponse {
-    let refresh_token = &body.refresh_token;
+async fn refresh(req: HttpRequest, pool: web::Data<DbPool>) -> HttpResponse {
+    let refresh_token = req
+        .cookie("refresh_token")
+        .expect("refresh token not provided");
+    let refresh_token = refresh_token.value();
 
     let refresh_secret_key = env::var("REFRESH_SECRET").expect("refresh secret not provided");
     let refresh_secret_key = refresh_secret_key.as_bytes();
@@ -186,17 +209,29 @@ async fn refresh(body: web::Json<RefreshRequest>, pool: web::Data<DbPool>) -> Ht
             let email = decoded_token.email;
 
             // Generate new access token
-            let access_token = generate_jwt(&user_id, &email, secret_key).unwrap();
-            let refresh_token =
-                generate_refresh_token(&user_id, &email, refresh_secret_key).unwrap();
+            let access_jwt = generate_jwt(&user_id, &email, secret_key).unwrap();
 
-            let response = RefreshResponse {
-                access_token,
-                refresh_token,
-            };
-
-            HttpResponse::Ok().json(response)
+            HttpResponse::Ok()
+                .append_header((
+                    "set-cookie",
+                    cookie("access_token", access_jwt, 604800), // 7d
+                ))
+                .json(())
         }
-        Err(_) => HttpResponse::Unauthorized().finish(),
+        Err(_) => HttpResponse::Unauthorized()
+            .append_header(("set-cookie", remove_cookie("access_token")))
+            .append_header(("set-cookie", remove_cookie("refresh_token")))
+            .finish(),
     }
+}
+
+fn remove_cookie(name: &str) -> String {
+    format!("{}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/", name)
+}
+
+fn cookie(name: &str, value: String, max_age_seconds: u64) -> String {
+    format!(
+        "{}={}; HttpOnly; Secure; SameSite=Strict; Max-Age={}",
+        name, value, max_age_seconds,
+    )
 }

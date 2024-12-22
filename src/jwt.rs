@@ -1,4 +1,4 @@
-use jsonwebtoken::{decode, DecodingKey, Validation};
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use jsonwebtoken::{encode, EncodingKey, Header};
 use serde::de::DeserializeOwned;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -8,8 +8,8 @@ use crate::models::User;
 
 pub fn generate_id_token(
     user: &User,
-    access_token: String,
-    refresh_token: String,
+    // access_token: String,
+    // refresh_token: String,
     secret_key: &[u8],
 ) -> Result<String, jsonwebtoken::errors::Error> {
     let claims = IdentityToken {
@@ -19,8 +19,8 @@ pub fn generate_id_token(
         email: user.email.to_owned(),
         picture: user.picture.to_owned(),
         // tokens
-        access_token,
-        refresh_token,
+        // access_token,
+        // refresh_token,
     };
 
     encode(
@@ -61,11 +61,12 @@ pub fn verify_jwt<T: DeserializeOwned>(
     token: &str,
     secret_key: &[u8],
 ) -> Result<T, jsonwebtoken::errors::Error> {
-    let decoded = decode::<T>(
-        token,
-        &DecodingKey::from_secret(secret_key),
-        &Validation::default(),
-    )?;
+    // Create validation rules (enable expiration check)
+    let mut validation = Validation::new(Algorithm::HS256);
+    validation.validate_exp = true; // Enable expiration check
+    validation.leeway = 60; // 1 minute leeway
+
+    let decoded = decode::<T>(token, &DecodingKey::from_secret(secret_key), &validation)?;
 
     Ok(decoded.claims)
 }

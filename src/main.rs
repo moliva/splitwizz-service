@@ -61,6 +61,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            .wrap(IdentityService)
             .wrap(Logger::default())
             .wrap(
                 Cors::default()
@@ -70,7 +71,6 @@ async fn main() -> std::io::Result<()> {
                     .allow_any_origin()
                     .max_age(3600),
             )
-            .wrap(IdentityService)
             .app_data(Data::new(db_connection.clone()))
             .app_data(Data::new(redis_pool.clone()))
             .service(routes::status::status)

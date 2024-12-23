@@ -7,12 +7,11 @@ use std::{
 };
 
 use actix_web::{
+    body::{EitherBody, MessageBody},
     dev::{Extensions, Payload, Service, ServiceRequest, ServiceResponse, Transform},
-    error::ErrorUnauthorized,
-    http::header::HeaderMap,
-    Error, FromRequest, HttpMessage, HttpRequest, HttpResponse, Result,
+    Either, Error, FromRequest, HttpMessage, HttpRequest, HttpResponse, Result,
 };
-use awc::cookie::Cookie;
+use awc::{body::BoxBody, cookie::Cookie};
 use futures::{
     future::{ok, FutureExt, Ready},
     Future,
@@ -97,7 +96,8 @@ where
     S::Future: 'static,
     B: 'static,
 {
-    type Response = ServiceResponse<B>;
+    // type Response = ServiceResponse<B>;
+    type Response = ServiceResponse<EitherBody<B>>;
     type Error = Error;
     type InitError = ();
     type Transform = IdentityMiddleware<S>;
@@ -128,7 +128,7 @@ where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
 {
-    type Response = ServiceResponse<B>;
+    type Response = ServiceResponse<EitherBody<B>>;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 
@@ -138,30 +138,53 @@ where
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
         if req.method() == Method::OPTIONS {
-            return Box::pin(self.service.call(req));
+            let srv = self.service.clone();
+            return async move {
+                let fut = srv.call(req);
+                let res = fut.await?;
+
+                Ok(res.map_into_left_body())
+            }
+            .boxed_local();
         }
         if ["/login", "/auth", "/refresh"].contains(&req.path()) {
-            return Box::pin(self.service.call(req));
+            let srv = self.service.clone();
+
+            return async move {
+                let fut = srv.call(req);
+                let res = fut.await?;
+
+                Ok(res.map_into_left_body())
+            }
+            .boxed_local();
         }
 
         let cookies = req.cookies().expect("cookies").clone();
         let srv = self.service.clone();
 
-        async move {
-            let id = validate_auth_(&cookies);
-            // if id.is_none() {
-            //     let sr = ErrorUnauthorized("Unauthorized: Missing or invalid token");
-            //
-            //     return Err(sr);
-            // }
+        let id = validate_auth_(&cookies);
+        if id.is_none() {
+            // let sr = ErrorUnauthorized("Unauthorized: Missing or invalid token");
+            let sr = async move {
+                Ok(ServiceResponse::new(
+                    req.request().clone(),
+                    HttpResponse::Unauthorized().finish(),
+                )
+                .map_into_right_body())
+            }
+            .boxed_local();
 
+            return sr;
+        }
+
+        async move {
             req.extensions_mut().insert(IdentityItem { id });
 
             let fut = srv.borrow_mut().call(req);
             let res = fut.await?;
             res.request().extensions_mut().remove::<IdentityItem>();
 
-            Ok(res)
+            Ok(res.map_into_left_body())
         }
         .boxed_local()
     }

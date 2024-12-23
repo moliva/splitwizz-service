@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use uuid::Uuid;
@@ -601,6 +602,7 @@ LIMIT 1
 pub(crate) async fn persist_refresh_token(
     user: &models::User,
     refresh_token: &str,
+    expiration: u64,
     pool: &DbPool,
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
@@ -617,10 +619,11 @@ AND is_revoked = false
 
     sqlx::query!(
         r#"
-INSERT INTO refresh_tokens (token, user_id) VALUES ($1, $2)
+INSERT INTO refresh_tokens (token, user_id, expires_at) VALUES ($1, $2, $3)
 "#,
         refresh_token,
-        user.id
+        user.id,
+        NaiveDateTime::from_timestamp(expiration as i64, 0)
     )
     .fetch_all(pool)
     .await?;

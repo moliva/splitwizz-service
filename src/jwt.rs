@@ -18,9 +18,6 @@ pub fn generate_id_token(
         name: user.name.to_owned(),
         email: user.email.to_owned(),
         picture: user.picture.to_owned(),
-        // tokens
-        // access_token,
-        // refresh_token,
     };
 
     encode(
@@ -75,7 +72,7 @@ pub fn generate_refresh_token(
     user_id: &str,
     email: &str,
     secret_key: &[u8],
-) -> Result<String, jsonwebtoken::errors::Error> {
+) -> Result<(String, u64), jsonwebtoken::errors::Error> {
     let expiration = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -93,4 +90,5 @@ pub fn generate_refresh_token(
         &claims,
         &EncodingKey::from_secret(secret_key),
     )
+    .map(|token| (token, expiration))
 }

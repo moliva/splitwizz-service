@@ -91,10 +91,11 @@ async fn auth(
         let secret_key = secret_key.as_bytes();
 
         let access_jwt = generate_jwt(&user.id, &user.email, secret_key).expect("jwt generation");
-        let refresh_jwt = generate_refresh_token(&user.id, &user.email, refresh_secret_key)
-            .expect("refresh generation");
+        let (refresh_jwt, expiration) =
+            generate_refresh_token(&user.id, &user.email, refresh_secret_key)
+                .expect("refresh generation");
 
-        queries::persist_refresh_token(&user, &refresh_jwt, &pool)
+        queries::persist_refresh_token(&user, &refresh_jwt, expiration, &pool)
             .await
             .expect("persist refresh token");
 

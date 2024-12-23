@@ -20,3 +20,10 @@ tests:
 	@make runservices
 	-@cargo test -- --test-threads=1
 	@make destroyservices
+
+prepare-sqlx:
+	@cargo sqlx prepare
+
+buildimages:
+	-./build-docker-migrations.sh -p
+	-./build-docker.sh -p

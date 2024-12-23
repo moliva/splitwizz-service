@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\nSELECT true\nFROM refresh_tokens\nWHERE token = $1\nAND NOW() < expires_at\nAND is_revoked = false\nLIMIT 1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "bool",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "848a7608d7726afcb5a62e137d420589907e098f1aa8a78bdc10c25f12ce57bf"
+}

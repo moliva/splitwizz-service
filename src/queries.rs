@@ -577,6 +577,61 @@ pub async fn find_expenses(
     Ok(expenses)
 }
 
+pub(crate) async fn validate_refresh_token(
+    refresh_token: &str,
+    pool: &DbPool,
+) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query!(
+        r#"
+SELECT true
+FROM refresh_tokens
+WHERE token = $1
+AND NOW() < expires_at
+AND is_revoked = false
+LIMIT 1
+"#,
+        refresh_token
+    )
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(result.is_some())
+}
+
+pub(crate) async fn persist_refresh_token(
+    user: &models::User,
+    refresh_token: &str,
+    pool: &DbPool,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"
+UPDATE refresh_tokens
+SET is_revoked = true
+WHERE user_id = $1
+AND is_revoked = false
+"#,
+        user.id
+    )
+    .fetch_all(pool)
+    .await?;
+
+    sqlx::query!(
+        r#"
+INSERT INTO refresh_tokens (token, user_id) VALUES ($1, $2)
+"#,
+        refresh_token,
+        user.id
+    )
+    .fetch_all(pool)
+    .await?;
+
+    Ok(())
+}
+
+// *****************************************************************************************************
+// *************** DTOs ***************
+// *****************************************************************************************************
+
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind")]
 #[serde(rename_all(serialize = "snake_case", deserialize = "snake_case"))]

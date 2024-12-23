@@ -13,7 +13,7 @@ use uuid::Uuid;
 use crate::auth::{AuthData, Claims, TokenForm, TokenResponse};
 use crate::jwt::{generate_id_token, generate_jwt, generate_refresh_token, verify_jwt};
 use crate::models::{User, UserStatus};
-use crate::queries::{upsert_user, DbPool};
+use crate::queries::{self, upsert_user, DbPool};
 use crate::redis::RedisPool;
 use crate::utils::gen_random_string;
 
@@ -64,7 +64,7 @@ async fn auth(
         let name = Some(payload.get_name());
         let picture = Some(payload.get_picture_url());
 
-        let user = User {
+        let mut user = User {
             id: Uuid::new_v4().to_string(),
             status: UserStatus::Active,
             name,
@@ -74,7 +74,7 @@ async fn auth(
             updated_at: None,
         };
 
-        upsert_user(&user, &pool)
+        user.id = upsert_user(&user, &pool)
             .await
             .map_err(|e| {
                 eprintln!("{}", e);
@@ -93,8 +93,10 @@ async fn auth(
         let access_jwt = generate_jwt(&user.id, &user.email, secret_key).expect("jwt generation");
         let refresh_jwt = generate_refresh_token(&user.id, &user.email, refresh_secret_key)
             .expect("refresh generation");
-        // TODO(miguel): add refresh token to table - 2024/12/22
-        // make sure all other refresh tokens are revoked
+
+        queries::persist_refresh_token(&user, &refresh_jwt, &pool)
+            .await
+            .expect("persist refresh token");
 
         let id_token = generate_id_token(&user, secret_key).expect("id token");
 
@@ -186,9 +188,15 @@ struct RefreshRequest {
 
 #[post("/refresh")]
 async fn refresh(req: HttpRequest, pool: web::Data<DbPool>) -> HttpResponse {
-    let refresh_token = req
-        .cookie("refresh_token")
-        .expect("refresh token not provided");
+    let refresh_token = req.cookie("refresh_token");
+    if refresh_token.is_none() {
+        return HttpResponse::Unauthorized()
+            .append_header(("set-cookie", remove_cookie("access_token")))
+            .append_header(("set-cookie", remove_cookie("refresh_token")))
+            .finish();
+    }
+
+    let refresh_token = refresh_token.expect("refresh_token");
     let refresh_token = refresh_token.value();
 
     let refresh_secret_key = env::var("REFRESH_SECRET").expect("refresh secret not provided");
@@ -200,8 +208,15 @@ async fn refresh(req: HttpRequest, pool: web::Data<DbPool>) -> HttpResponse {
     // Validate refresh token
     let decoded = verify_jwt::<Claims>(refresh_token, refresh_secret_key);
 
-    // TODO(miguel): check it's not revoked - 2024/12/22
-    // not expired
+    let result = queries::validate_refresh_token(refresh_token, &pool)
+        .await
+        .expect("check refresh token");
+    if !result {
+        return HttpResponse::Unauthorized()
+            .append_header(("set-cookie", remove_cookie("access_token")))
+            .append_header(("set-cookie", remove_cookie("refresh_token")))
+            .finish();
+    }
 
     match decoded {
         Ok(decoded_token) => {

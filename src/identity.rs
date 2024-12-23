@@ -7,11 +7,11 @@ use std::{
 };
 
 use actix_web::{
-    body::{EitherBody, MessageBody},
+    body::EitherBody,
     dev::{Extensions, Payload, Service, ServiceRequest, ServiceResponse, Transform},
-    Either, Error, FromRequest, HttpMessage, HttpRequest, HttpResponse, Result,
+    Error, FromRequest, HttpMessage, HttpRequest, HttpResponse, Result,
 };
-use awc::{body::BoxBody, cookie::Cookie};
+use awc::cookie::Cookie;
 use futures::{
     future::{ok, FutureExt, Ready},
     Future,

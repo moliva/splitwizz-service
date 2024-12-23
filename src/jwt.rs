@@ -8,8 +8,6 @@ use crate::models::User;
 
 pub fn generate_id_token(
     user: &User,
-    // access_token: String,
-    // refresh_token: String,
     secret_key: &[u8],
 ) -> Result<String, jsonwebtoken::errors::Error> {
     let claims = IdentityToken {

@@ -14,11 +14,10 @@ use crate::models::{self, Balance, SplitStrategy};
 use crate::queries::DbPool;
 use crate::redis::RedisPool;
 
+const _15_SECONDS: f64 = 15f64;
+
 #[get("/currencies")]
-pub async fn fetch_currencies(
-    identity: Identity,
-    pool: web::Data<DbPool>,
-) -> Result<HttpResponse, Error> {
+pub async fn fetch_currencies(pool: web::Data<DbPool>) -> Result<HttpResponse, Error> {
     let currencies = crate::queries::find_currencies(&pool)
         .await
         .map_err(handle_unknown_error)?;
@@ -33,8 +32,6 @@ enum Event {
     Group { id: models::GroupId, field: String },
     Notification { id: i32 },
 }
-
-const _15_SECONDS: f64 = 15f64;
 
 #[get("/sync")]
 pub async fn sync(identity: Identity, redis: web::Data<RedisPool>) -> Result<HttpResponse, Error> {
@@ -188,7 +185,6 @@ pub async fn fetch_detailed_group(
 
 #[put("/notifications")]
 pub async fn update_notifications(
-    identity: Identity,
     notifications_update: web::Json<models::NotificationsUpdate>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
@@ -201,7 +197,6 @@ pub async fn update_notifications(
 
 #[put("/notifications/{notification_id}")]
 pub async fn update_notification(
-    identity: Identity,
     path: web::Path<i32>,
     notification_update: web::Json<models::NotificationUpdate>,
     pool: web::Data<DbPool>,

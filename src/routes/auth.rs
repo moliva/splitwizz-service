@@ -3,14 +3,16 @@ use std::time::Duration;
 
 use actix_web::rt::spawn;
 use actix_web::web::Query;
-use actix_web::{get, post, web, HttpRequest, HttpResponse, HttpResponseBuilder, Result};
+use actix_web::{
+    get, post, web, HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder, Result,
+};
 use awc::{self, Client};
 use google_jwt_verify::Client as GoogleClient;
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::auth::{AuthData, Claims, TokenForm, TokenResponse};
+use crate::auth::{AuthData, Claims, LoginData, TokenForm, TokenResponse};
 use crate::jwt::{generate_id_token, generate_jwt, generate_refresh_token, verify_jwt};
 use crate::models::{User, UserStatus};
 use crate::queries::{self, upsert_user, DbPool};
@@ -19,7 +21,6 @@ use crate::utils::gen_random_string;
 
 #[get("/auth")]
 async fn auth(
-    _req: HttpRequest,
     auth_data: Query<AuthData>,
     pool: web::Data<DbPool>,
     redis: web::Data<RedisPool>,
@@ -113,8 +114,9 @@ async fn auth(
             .append_header((
                 "location",
                 format!(
-                    "{}?login_success={}",
+                    "{}{}?login_success={}",
                     env::var("WEB_URI").expect("web uri not provided"),
+                    auth_data.0.state.unwrap_or("".to_owned()),
                     id_token
                 ),
             ))
@@ -143,7 +145,7 @@ async fn publish_topic(redis: web::Data<RedisPool>, topic: String, payload: Stri
 }
 
 #[get("/login")]
-async fn login() -> Result<HttpResponse> {
+async fn login(Query(login_data): Query<LoginData>) -> Result<HttpResponse> {
     Ok(HttpResponse::Found()
         .append_header((
             "location",
@@ -156,7 +158,8 @@ async fn login() -> Result<HttpResponse> {
             state={}&\
             redirect_uri={}/auth&\
             client_id={}",
-                gen_random_string(),
+                //gen_random_string(),
+                login_data.redirect.unwrap_or("".to_owned()),
                 env::var("SELF_URI").expect("self uri not provided"),
                 env::var("CLIENT_ID").expect("client id not provided")
             ),
@@ -174,17 +177,6 @@ async fn logout() -> Result<HttpResponse> {
             env::var("WEB_URI").expect("web uri not provided"),
         ))
         .finish())
-}
-
-#[derive(Debug, Serialize)]
-struct RefreshResponse {
-    access_token: String,
-    refresh_token: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct RefreshRequest {
-    refresh_token: String,
 }
 
 #[post("/refresh")]

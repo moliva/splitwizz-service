@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 dockerfile='Dockerfile.migrations'
-image_name='splitwizz-service-migrations:v2'
+image_name='splitwizz-service-migrations:v3'
 
 echo "Building $image_name"
 docker build -f "$dockerfile" -t "$image_name" .

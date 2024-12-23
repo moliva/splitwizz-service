@@ -1,9 +1,15 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
+pub struct LoginData {
+    pub redirect: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct AuthData {
     pub code: Option<String>,
     pub error: Option<String>,
+    pub state: Option<String>,
 }
 
 #[derive(Serialize)]

@@ -25,7 +25,7 @@ pub fn generate_id_token(
     )
 }
 
-pub fn generate_jwt(
+pub fn generate_access_token(
     user_id: &str,
     email: &str,
     secret_key: &[u8],

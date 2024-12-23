@@ -3,21 +3,17 @@ use std::time::Duration;
 
 use actix_web::rt::spawn;
 use actix_web::web::Query;
-use actix_web::{
-    get, post, web, HttpMessage, HttpRequest, HttpResponse, HttpResponseBuilder, Result,
-};
+use actix_web::{get, post, web, HttpRequest, HttpResponse, Result};
 use awc::{self, Client};
 use google_jwt_verify::Client as GoogleClient;
 use redis::AsyncCommands;
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::auth::{AuthData, Claims, LoginData, TokenForm, TokenResponse};
-use crate::jwt::{generate_id_token, generate_jwt, generate_refresh_token, verify_jwt};
+use crate::jwt::{generate_access_token, generate_id_token, generate_refresh_token, verify_jwt};
 use crate::models::{User, UserStatus};
 use crate::queries::{self, upsert_user, DbPool};
 use crate::redis::RedisPool;
-use crate::utils::gen_random_string;
 
 #[get("/auth")]
 async fn auth(
@@ -92,7 +88,8 @@ async fn auth(
         let secret_key = env::var("JWT_SECRET").expect("jwt secret not provided");
         let secret_key = secret_key.as_bytes();
 
-        let access_jwt = generate_jwt(&user.id, &user.email, secret_key).expect("jwt generation");
+        let access_jwt =
+            generate_access_token(&user.id, &user.email, secret_key).expect("jwt generation");
         let (refresh_jwt, expiration) =
             generate_refresh_token(&user.id, &user.email, refresh_secret_key)
                 .expect("refresh generation");
@@ -103,10 +100,15 @@ async fn auth(
             .expect("user agent")
             .to_str()
             .expect("to_str");
-        let device_id = req
-            .cookie("device_id")
-            .map(|c| c.value().to_owned())
-            .unwrap_or_else(|| Uuid::new_v4().to_string());
+
+        let state = auth_data.0.state.unwrap_or("".to_owned());
+        let (device_id, redirect) = if state.contains('+') {
+            let mut it = state.split('+').map(|s| s.to_owned());
+
+            (it.next().unwrap(), it.next().unwrap())
+        } else {
+            (Uuid::new_v4().to_string(), state)
+        };
 
         queries::persist_refresh_token(
             &user,
@@ -136,7 +138,7 @@ async fn auth(
                 format!(
                     "{}{}?login_success={}",
                     env::var("WEB_URI").expect("web uri not provided"),
-                    auth_data.0.state.unwrap_or("".to_owned()),
+                    redirect,
                     id_token
                 ),
             ))
@@ -165,7 +167,16 @@ async fn publish_topic(redis: web::Data<RedisPool>, topic: String, payload: Stri
 }
 
 #[get("/login")]
-async fn login(Query(login_data): Query<LoginData>) -> Result<HttpResponse> {
+async fn login(request: HttpRequest, Query(login_data): Query<LoginData>) -> Result<HttpResponse> {
+    let device_id = request.cookie("device_id");
+    let redirect = login_data.redirect.unwrap_or("".to_owned());
+
+    let state = if let Some(device_id) = device_id {
+        format!("{}+{}", device_id.value(), redirect)
+    } else {
+        redirect
+    };
+
     Ok(HttpResponse::Found()
         .append_header((
             "location",
@@ -178,8 +189,7 @@ async fn login(Query(login_data): Query<LoginData>) -> Result<HttpResponse> {
             state={}&\
             redirect_uri={}/auth&\
             client_id={}",
-                //gen_random_string(),
-                login_data.redirect.unwrap_or("".to_owned()),
+                state,
                 env::var("SELF_URI").expect("self uri not provided"),
                 env::var("CLIENT_ID").expect("client id not provided")
             ),
@@ -241,7 +251,7 @@ async fn refresh(req: HttpRequest, pool: web::Data<DbPool>) -> HttpResponse {
             }
 
             // Generate new access token
-            let access_jwt = generate_jwt(&user_id, &email, secret_key).unwrap();
+            let access_jwt = generate_access_token(&user_id, &email, secret_key).unwrap();
 
             HttpResponse::Ok()
                 .append_header((

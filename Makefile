@@ -24,6 +24,12 @@ tests:
 prepare-sqlx:
 	@cargo sqlx prepare
 
-buildimages:
+build-migrations:
 	-./build-docker-migrations.sh -p
+
+build-backend:
 	-./build-docker.sh -p
+
+build-images:
+	@make build-migrations
+	@make build-backend

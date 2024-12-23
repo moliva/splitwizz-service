@@ -147,7 +147,7 @@ where
             }
             .boxed_local();
         }
-        if ["/login", "/auth", "/refresh"].contains(&req.path()) {
+        if ["/login", "/auth", "/refresh", "/logout"].contains(&req.path()) {
             let srv = self.service.clone();
 
             return async move {

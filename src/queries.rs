@@ -580,6 +580,8 @@ pub async fn find_expenses(
 
 pub(crate) async fn validate_refresh_token(
     refresh_token: &str,
+    user_id: &str,
+    device_id: &str,
     pool: &DbPool,
 ) -> Result<bool, sqlx::Error> {
     let result = sqlx::query!(
@@ -587,11 +589,15 @@ pub(crate) async fn validate_refresh_token(
 SELECT true
 FROM refresh_tokens
 WHERE token = $1
+AND user_id = $2
+AND device_id = $3
 AND NOW() < expires_at
 AND is_revoked = false
 LIMIT 1
 "#,
-        refresh_token
+        refresh_token,
+        user_id,
+        device_id,
     )
     .fetch_optional(pool)
     .await?;
@@ -602,6 +608,8 @@ LIMIT 1
 pub(crate) async fn persist_refresh_token(
     user: &models::User,
     refresh_token: &str,
+    user_agent: &str,
+    device_id: &str,
     expiration: u64,
     pool: &DbPool,
 ) -> Result<(), sqlx::Error> {
@@ -610,19 +618,24 @@ pub(crate) async fn persist_refresh_token(
 UPDATE refresh_tokens
 SET is_revoked = true
 WHERE user_id = $1
+AND device_id = $2
 AND is_revoked = false
 "#,
-        user.id
+        user.id,
+        device_id,
     )
     .fetch_all(pool)
     .await?;
 
     sqlx::query!(
         r#"
-INSERT INTO refresh_tokens (token, user_id, expires_at) VALUES ($1, $2, $3)
+INSERT INTO refresh_tokens (token, user_id, device_id, user_agent, expires_at)
+VALUES                     ($1,    $2,      $3,        $4,         $5)
 "#,
         refresh_token,
         user.id,
+        device_id,
+        user_agent,
         NaiveDateTime::from_timestamp(expiration as i64, 0)
     )
     .fetch_all(pool)

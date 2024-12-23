@@ -21,6 +21,7 @@ use crate::utils::gen_random_string;
 
 #[get("/auth")]
 async fn auth(
+    req: HttpRequest,
     auth_data: Query<AuthData>,
     pool: web::Data<DbPool>,
     redis: web::Data<RedisPool>,
@@ -96,13 +97,32 @@ async fn auth(
             generate_refresh_token(&user.id, &user.email, refresh_secret_key)
                 .expect("refresh generation");
 
-        queries::persist_refresh_token(&user, &refresh_jwt, expiration, &pool)
-            .await
-            .expect("persist refresh token");
+        let user_agent = req
+            .headers()
+            .get("User-Agent")
+            .expect("user agent")
+            .to_str()
+            .expect("to_str");
+        let device_id = req
+            .cookie("device_id")
+            .map(|c| c.value().to_owned())
+            .unwrap_or_else(|| Uuid::new_v4().to_string());
+
+        queries::persist_refresh_token(
+            &user,
+            &refresh_jwt,
+            user_agent,
+            &device_id,
+            expiration,
+            &pool,
+        )
+        .await
+        .expect("persist refresh token");
 
         let id_token = generate_id_token(&user, secret_key).expect("id token");
 
         HttpResponse::Found()
+            .append_header(("set-cookie", cookie_("device_id", device_id)))
             .append_header((
                 "set-cookie",
                 cookie("refresh_token", refresh_jwt, 604800), // 7d
@@ -182,7 +202,8 @@ async fn logout() -> Result<HttpResponse> {
 #[post("/refresh")]
 async fn refresh(req: HttpRequest, pool: web::Data<DbPool>) -> HttpResponse {
     let refresh_token = req.cookie("refresh_token");
-    if refresh_token.is_none() {
+    let device_id = req.cookie("device_id");
+    if refresh_token.is_none() || device_id.is_none() {
         return HttpResponse::Unauthorized()
             .append_header(("set-cookie", remove_cookie("access_token")))
             .append_header(("set-cookie", remove_cookie("refresh_token")))
@@ -191,6 +212,9 @@ async fn refresh(req: HttpRequest, pool: web::Data<DbPool>) -> HttpResponse {
 
     let refresh_token = refresh_token.expect("refresh_token");
     let refresh_token = refresh_token.value();
+
+    let device_id = device_id.expect("device_id");
+    let device_id = device_id.value();
 
     let refresh_secret_key = env::var("REFRESH_SECRET").expect("refresh secret not provided");
     let refresh_secret_key = refresh_secret_key.as_bytes();
@@ -201,20 +225,20 @@ async fn refresh(req: HttpRequest, pool: web::Data<DbPool>) -> HttpResponse {
     // Validate refresh token
     let decoded = verify_jwt::<Claims>(refresh_token, refresh_secret_key);
 
-    let result = queries::validate_refresh_token(refresh_token, &pool)
-        .await
-        .expect("check refresh token");
-    if !result {
-        return HttpResponse::Unauthorized()
-            .append_header(("set-cookie", remove_cookie("access_token")))
-            .append_header(("set-cookie", remove_cookie("refresh_token")))
-            .finish();
-    }
-
     match decoded {
         Ok(decoded_token) => {
             let user_id = decoded_token.sub;
             let email = decoded_token.email;
+
+            let result = queries::validate_refresh_token(refresh_token, &user_id, device_id, &pool)
+                .await
+                .expect("check refresh token");
+            if !result {
+                return HttpResponse::Unauthorized()
+                    .append_header(("set-cookie", remove_cookie("access_token")))
+                    .append_header(("set-cookie", remove_cookie("refresh_token")))
+                    .finish();
+            }
 
             // Generate new access token
             let access_jwt = generate_jwt(&user_id, &email, secret_key).unwrap();
@@ -235,6 +259,10 @@ async fn refresh(req: HttpRequest, pool: web::Data<DbPool>) -> HttpResponse {
 
 fn remove_cookie(name: &str) -> String {
     format!("{}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/", name)
+}
+
+fn cookie_(name: &str, value: String) -> String {
+    format!("{}={}; HttpOnly; Secure; SameSite=Strict", name, value,)
 }
 
 fn cookie(name: &str, value: String, max_age_seconds: u64) -> String {

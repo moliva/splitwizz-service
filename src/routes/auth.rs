@@ -102,8 +102,8 @@ async fn auth(
             .expect("to_str");
 
         let state = auth_data.0.state.unwrap_or("".to_owned());
-        let (device_id, redirect) = if state.contains('+') {
-            let mut it = state.split('+').map(|s| s.to_owned());
+        let (device_id, redirect) = if state.contains("SEPARATOR") {
+            let mut it = state.split("SEPARATOR").map(|s| s.to_owned());
 
             let device_id = it.next().unwrap();
             let redirect = it.next().unwrap();
@@ -127,7 +127,7 @@ async fn auth(
         let id_token = generate_id_token(&user, secret_key).expect("id token");
 
         HttpResponse::Found()
-            .append_header(("set-cookie", cookie_("device_id", device_id)))
+            .append_header(("set-cookie", cookie("device_id", device_id, 604800 * 4))) // 28d
             .append_header((
                 "set-cookie",
                 cookie("refresh_token", refresh_jwt, 604800), // 7d
@@ -175,7 +175,7 @@ async fn login(request: HttpRequest, Query(login_data): Query<LoginData>) -> Res
     let redirect = login_data.redirect.unwrap_or("".to_owned());
 
     let state = if let Some(device_id) = device_id {
-        format!("{}+{}", device_id.value(), redirect)
+        format!("{}SEPARATOR{}", device_id.value(), redirect)
     } else {
         redirect
     };
@@ -274,13 +274,9 @@ fn remove_cookie(name: &str) -> String {
     format!("{}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/", name)
 }
 
-fn cookie_(name: &str, value: String) -> String {
-    format!("{}={}; HttpOnly; Secure; SameSite=Strict", name, value,)
-}
-
 fn cookie(name: &str, value: String, max_age_seconds: u64) -> String {
     format!(
-        "{}={}; HttpOnly; Secure; SameSite=Strict; Max-Age={}",
+        "{}={}; HttpOnly; Secure; SameSite=Lax; Max-Age={}",
         name, value, max_age_seconds,
     )
 }

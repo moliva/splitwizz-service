@@ -105,7 +105,10 @@ async fn auth(
         let (device_id, redirect) = if state.contains('+') {
             let mut it = state.split('+').map(|s| s.to_owned());
 
-            (it.next().unwrap(), it.next().unwrap())
+            let device_id = it.next().unwrap();
+            let redirect = it.next().unwrap();
+
+            (device_id, redirect)
         } else {
             (Uuid::new_v4().to_string(), state)
         };

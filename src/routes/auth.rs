@@ -4,6 +4,7 @@ use std::time::Duration;
 use actix_web::rt::spawn;
 use actix_web::web::Query;
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Result};
+use awc::cookie::{time, Cookie};
 use awc::{self, Client};
 use google_jwt_verify::Client as GoogleClient;
 use redis::AsyncCommands;
@@ -127,15 +128,9 @@ async fn auth(
         let id_token = generate_id_token(&user, secret_key).expect("id token");
 
         HttpResponse::Found()
-            .append_header(("set-cookie", cookie("device_id", device_id, 604800 * 4))) // 28d
-            .append_header((
-                "set-cookie",
-                cookie("refresh_token", refresh_jwt, 604800), // 7d
-            ))
-            .append_header((
-                "set-cookie",
-                cookie("access_token", access_jwt, 604800), // 7d
-            ))
+            .cookie(cookie("device_id", device_id, 365))
+            .cookie(cookie("refresh_token", refresh_jwt, 7))
+            .cookie(cookie("access_token", access_jwt, 7))
             .append_header((
                 "location",
                 format!(
@@ -201,15 +196,15 @@ async fn login(request: HttpRequest, Query(login_data): Query<LoginData>) -> Res
 }
 
 #[get("/logout")]
-async fn logout() -> Result<HttpResponse> {
-    Ok(HttpResponse::Found()
+async fn logout() -> HttpResponse {
+    HttpResponse::Found()
         .append_header(("set-cookie", remove_cookie("access_token")))
         .append_header(("set-cookie", remove_cookie("refresh_token")))
         .append_header((
             "location",
             env::var("WEB_URI").expect("web uri not provided"),
         ))
-        .finish())
+        .finish()
 }
 
 #[post("/refresh")]
@@ -257,10 +252,7 @@ async fn refresh(req: HttpRequest, pool: web::Data<DbPool>) -> HttpResponse {
             let access_jwt = generate_access_token(&user_id, &email, secret_key).unwrap();
 
             HttpResponse::Ok()
-                .append_header((
-                    "set-cookie",
-                    cookie("access_token", access_jwt, 604800), // 7d
-                ))
+                .cookie(cookie("access_token", access_jwt, 7))
                 .json(())
         }
         Err(_) => HttpResponse::Unauthorized()
@@ -274,9 +266,11 @@ fn remove_cookie(name: &str) -> String {
     format!("{}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/", name)
 }
 
-fn cookie(name: &str, value: String, max_age_seconds: u64) -> String {
-    format!(
-        "{}={}; HttpOnly; Secure; SameSite=Lax; Max-Age={}",
-        name, value, max_age_seconds,
-    )
+fn cookie(name: &str, value: String, max_age_days: i64) -> Cookie {
+    Cookie::build(name, value)
+        .http_only(true)
+        .secure(true)
+        .same_site(actix_web::cookie::SameSite::Lax)
+        .max_age(time::Duration::days(max_age_days))
+        .finish()
 }

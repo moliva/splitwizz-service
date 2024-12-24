@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 
 dockerfile='Dockerfile.migrations'
-image_name='splitwizz-service-migrations:v6'
+
+last_hash=$(git rev-parse HEAD)
+image_name="splitwizz-service:$last_hash"
 
 echo "Building $image_name"
 docker build -f "$dockerfile" -t "$image_name" .
 
-if [[ $1 =~ ^(-p|--push) ]]
-then
+if [[ $1 =~ ^(-p|--push) ]]; then
   registry="$DOCKER_HOME_REGISTRY"
   repository_name="$registry/$image_name"
 
@@ -17,4 +18,3 @@ then
   echo "Pushing image to registry: $repository_name"
   docker push "$repository_name"
 fi
-

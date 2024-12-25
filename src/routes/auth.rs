@@ -131,19 +131,13 @@ async fn auth(
             .cookie(cookie("device_id", device_id, 365))
             .cookie(cookie("refresh_token", refresh_jwt, 7))
             .cookie(cookie("access_token", access_jwt, 7))
-            .cookie(
-                Cookie::build("id_token", id_token)
-                    .secure(true)
-                    .same_site(actix_web::cookie::SameSite::Strict)
-                    .max_age(time::Duration::days(365))
-                    .finish(),
-            )
             .append_header((
                 "location",
                 format!(
-                    "{}{}",
+                    "{}{}?login_success={}",
                     env::var("WEB_URI").expect("web uri not provided"),
                     redirect,
+                    id_token
                 ),
             ))
             .finish()

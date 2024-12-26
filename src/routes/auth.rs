@@ -80,7 +80,7 @@ async fn logout() -> HttpResponse {
 #[post("/refresh")]
 async fn refresh(req: HttpRequest, pool: web::Data<DbPool>) -> HttpResponse {
     let validate_refresh_token = |user_id: String, device_id: String, refresh_token: String| async move {
-        queries::validate_refresh_token(&user_id, &device_id, &refresh_token, &pool)
+        queries::validate_refresh_token(&refresh_token, &user_id, &device_id, &pool)
             .await
             .expect("validate refresh token")
     };

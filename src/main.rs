@@ -20,7 +20,6 @@ mod models;
 mod queries;
 mod redis;
 mod routes;
-mod utils;
 mod workers;
 
 #[actix_web::main]

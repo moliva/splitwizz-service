@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use ::auth::auth::IdentityToken;
+
 pub type GroupId = i32;
 pub type UserId = String;
 pub type CurrencyId = i32;
@@ -46,6 +48,17 @@ pub struct User {
 
     pub created_at: Option<chrono::DateTime<chrono::Utc>>,
     pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+impl From<User> for IdentityToken {
+    fn from(val: User) -> Self {
+        Self {
+            sub: val.id,
+            name: val.name,
+            email: val.email,
+            picture: val.picture,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Deserialize, Serialize)]

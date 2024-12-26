@@ -9,16 +9,14 @@ use env_logger::Env;
 use futures::executor::block_on;
 use tokio::task::spawn_blocking;
 
-use crate::identity::IdentityService;
-use crate::queries::create_connection_pool;
+use ::auth::identity::IdentityService;
 
+use crate::queries::create_connection_pool;
 use crate::redis::create_redis_pool;
 use crate::workers::activity::activity_detector;
 use crate::workers::sync::topics_sync;
 
 mod auth;
-mod identity;
-mod jwt;
 mod models;
 mod queries;
 mod redis;

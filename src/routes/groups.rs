@@ -9,7 +9,8 @@ use actix_web::{
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 
-use crate::identity::Identity;
+use ::auth::identity::Identity;
+
 use crate::models::{self, Balance, SplitStrategy};
 use crate::queries::DbPool;
 use crate::redis::RedisPool;

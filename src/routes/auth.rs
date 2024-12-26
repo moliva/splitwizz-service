@@ -10,8 +10,12 @@ use google_jwt_verify::Client as GoogleClient;
 use redis::AsyncCommands;
 use uuid::Uuid;
 
-use crate::auth::{AuthData, Claims, LoginData, TokenForm, TokenResponse};
-use crate::jwt::{generate_access_token, generate_id_token, generate_refresh_token, verify_jwt};
+use ::auth::{
+    auth::Claims,
+    jwt::{generate_access_token, generate_id_token, generate_refresh_token, verify_jwt},
+};
+
+use crate::auth::{AuthData, LoginData, TokenForm, TokenResponse};
 use crate::models::{User, UserStatus};
 use crate::queries::{self, upsert_user, DbPool};
 use crate::redis::RedisPool;
@@ -125,7 +129,7 @@ async fn auth(
         .await
         .expect("persist refresh token");
 
-        let id_token = generate_id_token(&user, secret_key).expect("id token");
+        let id_token = generate_id_token(user, secret_key).expect("id token");
 
         HttpResponse::Found()
             .cookie(cookie("device_id", device_id, 365))

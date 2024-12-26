@@ -17,6 +17,14 @@ use crate::redis::{publish_topic, RedisPool};
 
 const _15_SECONDS: f64 = 15f64;
 
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash)]
+#[serde(rename_all(serialize = "snake_case", deserialize = "snake_case"))]
+#[serde(tag = "kind")]
+enum Event {
+    Group { id: models::GroupId, field: String },
+    Notification { id: i32 },
+}
+
 #[get("/currencies")]
 pub async fn fetch_currencies(pool: web::Data<DbPool>) -> Result<HttpResponse, Error> {
     let currencies = crate::queries::find_currencies(&pool)
@@ -26,17 +34,9 @@ pub async fn fetch_currencies(pool: web::Data<DbPool>) -> Result<HttpResponse, E
     Ok(HttpResponse::Ok().json(&currencies))
 }
 
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash)]
-#[serde(rename_all(serialize = "snake_case", deserialize = "snake_case"))]
-#[serde(tag = "kind")]
-enum Event {
-    Group { id: models::GroupId, field: String },
-    Notification { id: i32 },
-}
-
 #[get("/sync")]
 pub async fn sync(identity: Identity, redis: web::Data<RedisPool>) -> Result<HttpResponse, Error> {
-    let email = identity.identity().unwrap().email;
+    let email = identity.claims().email;
 
     let mut redis = redis.get().await.expect("pooled conn");
     redis
@@ -91,7 +91,7 @@ pub async fn fetch_notifications(
     identity: Identity,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-    let email = identity.identity().unwrap().email;
+    let email = identity.claims().email;
 
     let notifications = crate::queries::find_notifications(&email, &pool)
         .await
@@ -105,7 +105,7 @@ pub async fn fetch_groups(
     identity: Identity,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-    let email = identity.identity().unwrap().email;
+    let email = identity.claims().email;
 
     let groups = crate::queries::find_groups(&email, &pool)
         .await
@@ -121,7 +121,7 @@ pub async fn create_group(
     pool: web::Data<DbPool>,
     redis: web::Data<RedisPool>,
 ) -> Result<HttpResponse, Error> {
-    let email = identity.identity().unwrap().email;
+    let email = identity.claims().email;
     let web::Json(group) = group;
 
     let group_id = crate::queries::create_group(&email, group, &pool)
@@ -153,7 +153,7 @@ pub async fn edit_group(
     redis: web::Data<RedisPool>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-    let email = identity.identity().unwrap().email;
+    let email = identity.claims().email;
     let web::Json(group) = group;
     let group_id = path.into_inner();
 
@@ -177,7 +177,7 @@ pub async fn fetch_detailed_group(
     path: web::Path<models::GroupId>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-    let email = identity.identity().unwrap().email;
+    let email = identity.claims().email;
     let group_id = path.into_inner();
 
     let group = crate::queries::find_group(&email, group_id, &pool)
@@ -222,7 +222,7 @@ pub async fn update_membership(
     redis: web::Data<RedisPool>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-    let email = identity.identity().unwrap().email;
+    let email = identity.claims().email;
     let group_id = group_id.into_inner();
 
     let web::Json(models::MembershipUpdate { status }) = membership_invitation;
@@ -255,7 +255,7 @@ pub async fn create_memberships(
     pool: web::Data<DbPool>,
     redis: web::Data<RedisPool>,
 ) -> Result<HttpResponse, Error> {
-    let email = identity.identity().unwrap().email;
+    let email = identity.claims().email;
     let group_id = group_id.into_inner();
 
     let web::Json(models::MembershipInvitation { emails }) = membership_invitation;
@@ -283,7 +283,7 @@ pub async fn delete_expense(
     redis: web::Data<RedisPool>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-    let email = identity.identity().unwrap().email;
+    let email = identity.claims().email;
     let (group_id, expense_id) = path.into_inner();
 
     // TODO - check that current user is joined in group - moliva - 2024/03/21
@@ -310,7 +310,7 @@ pub async fn create_expense(
     pool: web::Data<DbPool>,
     redis: web::Data<RedisPool>,
 ) -> Result<HttpResponse, Error> {
-    let email = identity.identity().unwrap().email;
+    let email = identity.claims().email;
     let group_id = group_id.into_inner();
 
     // TODO - check that current user is joined in group - moliva - 2024/03/21
@@ -349,7 +349,7 @@ pub async fn fetch_balances(
     group_id: web::Path<i32>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-    let email = identity.identity().unwrap().email;
+    let email = identity.claims().email;
     let group_id = group_id.into_inner();
 
     // TODO - check that current user is joined in group - moliva - 2024/03/21
@@ -489,7 +489,7 @@ pub async fn fetch_balances(
         }
     }
 
-    Ok(HttpResponse::Ok().json(&balances.values().collect::<Vec<_>>()))
+    Ok(HttpResponse::Ok().json(balances.values().collect::<Vec<_>>()))
 }
 
 #[get("/groups/{group_id}/expenses")]
@@ -498,7 +498,7 @@ pub async fn fetch_expenses(
     group_id: web::Path<i32>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-    let email = identity.identity().unwrap().email;
+    let email = identity.claims().email;
     let group_id = group_id.into_inner();
 
     // TODO - check that current user is joined in group - moliva - 2024/03/21

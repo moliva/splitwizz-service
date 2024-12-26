@@ -374,7 +374,7 @@ dependencies = [
 [[package]]
 name = "auth"
 version = "0.1.0"
-source = "git+https://github.com/moliva/auth.rs?branch=main#678136a54cbdf1f9aadb322021bf7de3938ff66e"
+source = "git+https://github.com/moliva/auth.rs?branch=main#e398b6fdd563cc652aee577cfee668284d158c65"
 dependencies = [
  "actix-web",
  "awc",

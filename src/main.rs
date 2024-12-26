@@ -16,7 +16,6 @@ use crate::redis::create_redis_pool;
 use crate::workers::activity::activity_detector;
 use crate::workers::sync::topics_sync;
 
-mod auth;
 mod models;
 mod queries;
 mod redis;

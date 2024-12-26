@@ -401,6 +401,7 @@ dependencies = [
  "http 0.2.12",
  "jsonwebtoken",
  "serde",
+ "uuid 0.8.2",
 ]
 
 [[package]]

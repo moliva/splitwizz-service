@@ -134,6 +134,7 @@ async fn auth(
             .cookie(
                 Cookie::build("id_token", id_token)
                     .secure(true)
+                    .path("/")
                     .same_site(actix_web::cookie::SameSite::Lax)
                     .max_age(time::Duration::days(365))
                     .finish(),

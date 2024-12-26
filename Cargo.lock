@@ -42,7 +42,7 @@ checksum = "d48f96fc3003717aeb9856ca3d02a8c7de502667ad76eeacd830b48d2e91fac4"
 dependencies = [
  "actix-codec",
  "actix-rt",
- "actix-service 2.0.2",
+ "actix-service",
  "actix-tls",
  "actix-utils",
  "ahash",
@@ -116,7 +116,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ca2549781d8dd6d75c40cf6b6051260a2cc2f3c62343d761a969a0640646894"
 dependencies = [
  "actix-rt",
- "actix-service 2.0.2",
+ "actix-service",
  "actix-utils",
  "futures-core",
  "futures-util",
@@ -124,16 +124,6 @@ dependencies = [
  "socket2",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "actix-service"
-version = "1.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0052435d581b5be835d11f4eb3bce417c8af18d87ddf8ace99f8e67e595882bb"
-dependencies = [
- "futures-util",
- "pin-project",
 ]
 
 [[package]]
@@ -154,7 +144,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac453898d866cdbecdbc2334fe1738c747b4eba14a677261f2b768ba05329389"
 dependencies = [
  "actix-rt",
- "actix-service 2.0.2",
+ "actix-service",
  "actix-utils",
  "futures-core",
  "http 0.2.12",
@@ -190,7 +180,7 @@ dependencies = [
  "actix-router",
  "actix-rt",
  "actix-server",
- "actix-service 2.0.2",
+ "actix-service",
  "actix-tls",
  "actix-utils",
  "actix-web-codegen",
@@ -231,21 +221,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.90",
-]
-
-[[package]]
-name = "actix-web-httpauth"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "456348ed9dcd72a13a1f4a660449fafdecee9ac8205552e286809eb5b0b29bd3"
-dependencies = [
- "actix-utils",
- "actix-web",
- "base64 0.22.1",
- "futures-core",
- "futures-util",
- "log",
- "pin-project-lite",
 ]
 
 [[package]]
@@ -419,7 +394,7 @@ dependencies = [
  "actix-codec",
  "actix-http",
  "actix-rt",
- "actix-service 2.0.2",
+ "actix-service",
  "actix-tls",
  "actix-utils",
  "base64 0.22.1",
@@ -862,28 +837,6 @@ name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
-
-[[package]]
-name = "failure"
-version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d32e9bd16cc02eae7db7ef620b392808b89f6a5e16bb3497d159c6b92a0f4f86"
-dependencies = [
- "backtrace",
- "failure_derive",
-]
-
-[[package]]
-name = "failure_derive"
-version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa4da3c766cd7a0db8242e326e9e4e081edd567072893ed320008189715366a4"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
- "synstructure 0.12.6",
-]
 
 [[package]]
 name = "fastrand"
@@ -1850,26 +1803,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
 
 [[package]]
-name = "pin-project"
-version = "0.4.30"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ef0f924a5ee7ea9cbcea77529dba45f8a9ba9f622419fe3386ca581a3ae9d5a"
-dependencies = [
- "pin-project-internal",
-]
-
-[[package]]
-name = "pin-project-internal"
-version = "0.4.30"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "851c8d0ce9bebe43790dedfc86614c23494ac9f423dd618d3a61fc693eafe61e"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "pin-project-lite"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2356,22 +2289,14 @@ name = "splitwizz-service"
 version = "0.1.0"
 dependencies = [
  "actix-cors",
- "actix-http",
- "actix-service 1.0.6",
  "actix-web",
- "actix-web-httpauth",
  "auth",
- "awc",
  "bb8-redis",
  "chrono",
  "dotenvy",
  "env_logger",
- "failure",
  "futures",
  "google-jwt-verify",
- "http 0.2.12",
- "jsonwebtoken",
- "openssl",
  "rand",
  "redis",
  "serde",
@@ -2644,18 +2569,6 @@ name = "sync_wrapper"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2047c6ded9c721764247e62cd3b03c09ffc529b2ba5b10ec482ae507a4a70160"
-
-[[package]]
-name = "synstructure"
-version = "0.12.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f36bdaa60a83aca3921b5259d5400cbf5e90fc51931376a9bd4a0eb79aa7210f"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
- "unicode-xid",
-]
 
 [[package]]
 name = "synstructure"
@@ -2934,12 +2847,6 @@ name = "unicode-segmentation"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6ccf251212114b54433ec949fd6a7841275f9ada20dddd2f29e9ceea4501493"
-
-[[package]]
-name = "unicode-xid"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "unicode_categories"
@@ -3324,7 +3231,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.90",
- "synstructure 0.13.1",
+ "synstructure",
 ]
 
 [[package]]
@@ -3366,7 +3273,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.90",
- "synstructure 0.13.1",
+ "synstructure",
 ]
 
 [[package]]

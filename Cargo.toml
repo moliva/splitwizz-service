@@ -5,23 +5,15 @@ version = "0.1.0"
 
 [dependencies]
 actix-cors = "0.7"
-actix-http = "3.6"
-actix-service = "1.0"
 actix-web = { version = "4.5", features = ["openssl"] }
-actix-web-httpauth = "0.8"
 auth = { path = "../auth" }
-awc = { version = "3.4", features = ["openssl"] }
 chrono = { version = "0.4", features = ["serde"] }
 dotenvy = "0.15"
 env_logger = "0.11"
-failure = "0.1"
 futures = "0.3"
 google-jwt-verify = { git = "https://github.com/moliva/google-jwt-verify", branch = "master", features = [
   "async",
 ] }
-http = "0.2"
-jsonwebtoken = "9.3"
-openssl = { version = "0.10", features = ["v110"] }
 sqlx = { version = "0.7", features = [
   "runtime-tokio-native-tls",
   "postgres",

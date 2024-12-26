@@ -13,7 +13,7 @@ use ::auth::identity::Identity;
 
 use crate::models::{self, Balance, SplitStrategy};
 use crate::queries::DbPool;
-use crate::redis::RedisPool;
+use crate::redis::{publish_topic, RedisPool};
 
 const _15_SECONDS: f64 = 15f64;
 
@@ -128,6 +128,8 @@ pub async fn create_group(
         .await
         .map_err(handle_unknown_error)?;
 
+    let redis = redis.as_ref().clone();
+
     spawn(publish_topic(
         redis.clone(),
         format!("groups.{}.config", group_id),
@@ -159,6 +161,7 @@ pub async fn edit_group(
         .await
         .map_err(handle_unknown_error)?;
 
+    let redis = redis.as_ref();
     spawn(publish_topic(
         redis.clone(),
         format!("groups.{}.config", group_id),
@@ -228,6 +231,7 @@ pub async fn update_membership(
         .await
         .map_err(handle_unknown_error)?;
 
+    let redis = redis.as_ref();
     spawn(publish_topic(
         redis.clone(),
         format!("groups.{}.members.{}", group_id, email),
@@ -235,7 +239,7 @@ pub async fn update_membership(
     ));
 
     spawn(publish_topic(
-        redis,
+        redis.clone(),
         format!("users.{}.groups.{}.joined", email, group_id),
         email,
     ));
@@ -260,6 +264,7 @@ pub async fn create_memberships(
         .await
         .map_err(handle_unknown_error)?;
 
+    let redis = redis.as_ref();
     for invite in emails {
         spawn(publish_topic(
             redis.clone(),
@@ -287,6 +292,7 @@ pub async fn delete_expense(
         .await
         .map_err(handle_unknown_error)?;
 
+    let redis = redis.as_ref();
     spawn(publish_topic(
         redis.clone(),
         format!("groups.{}.expenses.{}", group_id, email),
@@ -317,6 +323,7 @@ pub async fn create_expense(
         .await
         .map_err(handle_unknown_error)?;
 
+    let redis = redis.as_ref();
     spawn(publish_topic(
         redis.clone(),
         format!("groups.{}.expenses.{}", group_id, expense_id),
@@ -509,7 +516,7 @@ pub async fn fetch_expenses(
 
 async fn lookup_and_publish(
     pool: web::Data<DbPool>,
-    redis: web::Data<RedisPool>,
+    redis: RedisPool,
     payer: String,
     recipient: String,
     email: String,
@@ -533,19 +540,10 @@ async fn lookup_and_publish(
     let notif_email = r.email;
 
     spawn(publish_topic(
-        redis.clone(),
+        redis,
         format!("users.{}.notifications", notif_email),
         email.clone(),
     ));
-}
-
-async fn publish_topic(redis: web::Data<RedisPool>, topic: String, payload: String) {
-    let mut redis = redis.get().await.expect("pooled conn");
-
-    redis
-        .publish::<String, String, ()>(topic, payload)
-        .await
-        .expect("published topic");
 }
 
 // *****************************************************************************************************

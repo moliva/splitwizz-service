@@ -2,14 +2,13 @@ use actix_web::rt::spawn;
 use actix_web::web::Query;
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Result};
 use google_jwt_verify::IdPayload;
-use redis::AsyncCommands;
 use uuid::Uuid;
 
 use ::auth::auth::{AuthData, LoginData};
 
 use crate::models::{User, UserStatus};
 use crate::queries::{self, DbPool};
-use crate::redis::RedisPool;
+use crate::redis::{publish_topic, RedisPool};
 
 #[get("/auth")]
 async fn auth(
@@ -42,7 +41,8 @@ async fn auth(
             })
             .expect("user insert");
 
-        spawn(publish_topic(redis, "auth.login".to_owned(), email));
+        let redis = redis.get_ref();
+        spawn(publish_topic(redis.clone(), "auth.login".to_owned(), email));
 
         user
     };
@@ -86,17 +86,4 @@ async fn refresh(req: HttpRequest, pool: web::Data<DbPool>) -> HttpResponse {
     };
 
     ::auth::handlers::refresh(req, validate_refresh_token).await
-}
-
-// *****************************************************************************************************
-// *************** Utils ***************
-// *****************************************************************************************************
-
-async fn publish_topic(redis: web::Data<RedisPool>, topic: String, payload: String) {
-    let mut redis = redis.get().await.expect("pooled conn");
-
-    redis
-        .publish::<String, String, ()>(topic, payload)
-        .await
-        .expect("published topic");
 }

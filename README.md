@@ -38,3 +38,10 @@ And the migrations image as well:
 ```
 
 After checking that everything is good you can run the same commands now with the publish flag on `-p`
+
+
+## Generate keys
+
+```bash
+openssl rand -base64 32
+```
